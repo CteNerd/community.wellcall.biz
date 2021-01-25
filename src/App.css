@@ -14,14 +14,82 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
+  background-color: rgb(40, 44, 52, 0.4);
+  min-height: 10vh;
+  max-height: 10vh;
+  /* display: flex; */
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
   color: white;
+  border-radius: 10px;
+}
+
+.App-header .logo {
+  max-width: 20vw;
+  min-width: 120px;
+  height: 10vh;
+  display: inline-flex;
+}
+
+.App-header a {
+  vertical-align: text-bottom;
+  display: inline-flex;
+  line-height: 10vh;
+  color: #1c2c5c;
+}
+
+.App-header .nav {
+  display: inline-flex;
+}
+
+.App-header .menu-btn {
+  vertical-align: middle;
+  float: left;
+  padding: 1vh;
+  min-height: 10vh;
+}
+
+.App-header .menu-line:hover {
+  cursor: pointer;
+}
+.App-header .menu-line {
+  width: 35px;
+  height: 5px;
+  background-color: #1c2c5c;
+  margin: 6px 0;
+}
+
+.App-main {
+  background-color: rgb(255, 255, 255, .6);
+  min-height: 80vh;
+  /* display: flex; */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: #1c2c5c;
+  margin: 0 8vw;
+}
+
+.App-footer {
+  background-color: rgb(40, 44, 52, 0.4);
+  min-height: 10vh;
+  /* display: flex; */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  border-radius: 10px;
+  color: #1c2c5c;
+}
+
+.App-footer a p {
+  vertical-align: text-bottom;
+  display: inline-flex;
+  line-height: 10vh;
+  color: #1c2c5c;
 }
 
 .App-link {
@@ -35,4 +103,45 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+
+* {
+  box-sizing: border-box;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.col-33 {
+  width: 33%;
+  display: inline-block;
+}
+
+.col-50 {
+  width: 50%;
+  display: inline-block;
+}
+
+/* Style page content - use this if you want to push the page content to the right when you open the side navigation */
+#main {
+  transition: margin-left 0.5s;
+  text-align: -webkit-center;
+}
+
+/* On smaller screens, where height is less than 450px, change the style of the sidenav (less padding and a smaller font size) */
+@media screen and (max-height: 450px) {
+  .sidenav {
+    padding-top: 15px;
+  }
+  .sidenav a {
+    font-size: 18px;
+  }
+}
+
+button {
+  background-color: #1c2c5c;
+  color: #7bc344;
+  font-size: small;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 10px;
 }

@@ -1,26 +1,72 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import "./App.css";
+import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
+import Home from "./main/home/home";
+import About from "./main/about/about";
+import SideNav from "./main/side-nav/sideNav";
+import logo from "./images/Community We'll Call Logo No Padding.png";
+import { MailOutlined, PhoneOutlined } from "@ant-design/icons";
 
 function App() {
   return (
     <div className="App">
+      <SideNav />
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        <div className="col-33 menu-btn" onClick={() => openNav()}>
+          <div className="menu-line"></div>
+          <div className="menu-line"></div>
+          <div className="menu-line"></div>
+        </div>
+        <div className="col-33">
+          <img src={logo} className="logo col-50" />
+        </div>
+        <div className="col-33"></div>
       </header>
+
+      <div className="App-main">
+        <Router>
+          <Switch>
+            <Route path="/about">
+              <About />
+            </Route>
+            <Route path="/">
+              <Home />
+            </Route>
+          </Switch>
+        </Router>
+      </div>
+
+      <footer className="App-footer">
+        <div className="col-33">
+          <a href={"mailto:admin@wellcall.biz"}>
+            <MailOutlined />
+          </a>
+        </div>
+        <div className="col-33">
+          <button
+            type="submit"
+            onClick={() =>
+              window.open("https://facebook.com/WellCallTechConsulting", "_blank")
+            }
+          >
+            Schedule An Appointment Now
+          </button>
+        </div>
+        <div className="col-33">
+          <a href={"tel:559-574-1056"}>
+            <PhoneOutlined />
+          </a>
+        </div>
+      </footer>
     </div>
   );
+}
+
+/* Set the width of the side navigation to 250px */
+function openNav() {
+  if (document.getElementById("mySidenav")) {
+    document.getElementById("mySidenav")!.style.width = "250px";
+  }
 }
 
 export default App;
