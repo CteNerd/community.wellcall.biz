@@ -3,6 +3,9 @@ import "./App.css";
 import { BrowserRouter as Router, Switch, Route, Link } from "react-router-dom";
 import Home from "./main/home/home";
 import About from "./main/about/about";
+import Communities from "./main/communities/communities";
+import RechargeSubmit from "./main/recharge/submit"
+import RechargeWinners from "./main/recharge/winners"
 import SideNav from "./main/side-nav/sideNav";
 import logo from "./images/Community We'll Call Logo No Padding.png";
 import { MailOutlined, PhoneOutlined } from "@ant-design/icons";
@@ -26,6 +29,15 @@ function App() {
       <div className="App-main">
         <Router>
           <Switch>
+            <Route path="/communities">
+              <Communities />
+            </Route>
+            <Route path="/recharged">
+              <RechargeWinners />
+            </Route>
+            <Route path="/recharge">
+              <RechargeSubmit />
+            </Route>
             <Route path="/about">
               <About />
             </Route>
@@ -46,10 +58,13 @@ function App() {
           <button
             type="submit"
             onClick={() =>
-              window.open("https://facebook.com/WellCallTechConsulting", "_blank")
+              window.open(
+                "https://www.facebook.com/Well-Call-Community-102031021904914",
+                "_blank"
+              )
             }
           >
-            Schedule An Appointment Now
+            Follow Us On Facebook
           </button>
         </div>
         <div className="col-33">

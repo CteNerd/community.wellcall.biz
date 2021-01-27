@@ -1,5 +1,14 @@
 .App {
   text-align: center;
+  background-image: url("./images/familysilhouette_transparent.png");
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center bottom;
+}
+
+p {
+  font-size: 17px;
 }
 
 .App-logo {
@@ -62,7 +71,7 @@
 }
 
 .App-main {
-  background-color: rgb(255, 255, 255, .6);
+  background-color: rgb(255, 255, 255, 0.6);
   min-height: 80vh;
   /* display: flex; */
   flex-direction: column;
@@ -104,7 +113,6 @@
     transform: rotate(360deg);
   }
 }
-
 
 * {
   box-sizing: border-box;

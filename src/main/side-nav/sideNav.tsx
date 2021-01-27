@@ -13,6 +13,7 @@ import {
   TrophyOutlined,
   UploadOutlined,
   TeamOutlined,
+  ThunderboltOutlined,
 } from "@ant-design/icons";
 import "./sideNav.css";
 
@@ -43,19 +44,17 @@ export default function SideNav() {
         onClick={() => setShowLuckDropdown(!showLuckDropdown)}
         className="dropdown-btn"
       >
-        <RocketOutlined /> Press Your Luck
+        <ThunderboltOutlined /> Recharge
         <CaretDownOutlined className={"fa-caret-down"} />
       </button>
       <div
         className="dropdown-container"
         style={{ display: showLuckDropdown ? "block" : "none" }}
       >
-        <a
-          href="/press_luck"
-        >
-          <UploadOutlined /> Enter To Win!!!
+        <a href="/recharge">
+          <RocketOutlined /> Submit Your Business
         </a>
-        <a href="/press_luck_winners">
+        <a href="/recharged">
           <TrophyOutlined /> Winners Circle
         </a>
       </div>
@@ -71,12 +70,12 @@ export default function SideNav() {
         style={{ display: showSocialDropdown ? "block" : "none" }}
       >
         <a
-          href="https://www.facebook.com/WellCallTechConsulting"
+          href="https://www.facebook.com/Well-Call-Community-102031021904914"
           target={"_blank"}
         >
           <FacebookOutlined /> Facebook
         </a>
-        <a href="https://www.instagram.com/d.o.n._tomlin/" target={"_blank"}>
+        <a href="https://www.instagram.com/WellCallCommunity/" target={"_blank"}>
           <InstagramOutlined /> Instagram
         </a>
       </div>
