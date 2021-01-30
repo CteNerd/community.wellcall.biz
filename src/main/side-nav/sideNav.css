@@ -12,6 +12,10 @@
   transition: 0.5s; /* 0.5 second transition effect to slide in the sidenav */
 }
 
+.sidenav .anticon {
+  color: #7bc344;
+}
+
 /* The navigation menu links */
 .sidenav a {
   padding: 8px 8px 8px 32px;
