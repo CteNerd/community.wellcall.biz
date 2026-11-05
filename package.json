@@ -2,6 +2,9 @@
   "name": "community.wellcall.biz",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/contracts"
+  ],
   "dependencies": {
     "@ant-design/icons": "^4.4.0",
     "@testing-library/jest-dom": "^5.11.9",
@@ -16,11 +19,12 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "4.0.1",
+    "react-scripts": "4.0.3",
     "typescript": "^4.1.3",
     "web-vitals": "^0.2.4"
   },
   "scripts": {
+    "test:contracts": "npm run check --workspace @rct/portfolio-contracts && node packages/contracts/src/verify-pin.ts",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

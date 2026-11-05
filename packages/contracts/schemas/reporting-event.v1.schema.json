@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:rct:portfolio:reporting-event:v1",
+  "title": "Portfolio reporting events v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["source", "detail-type", "detail"],
+  "properties": {
+    "source": { "enum": ["rct.consulting", "rct.dotcom"] },
+    "detail-type": {
+      "enum": [
+        "consulting.lead.created.v1",
+        "consulting.lead.count.adjusted.v1",
+        "dotcom.mentor.approved.v1",
+        "dotcom.mentor.approval.count.adjusted.v1"
+      ]
+    },
+    "detail": { "$ref": "#/definitions/detail" },
+    "version": { "const": "0" },
+    "id": { "type": "string", "format": "uuid" },
+    "account": { "type": "string", "pattern": "^[0-9]{12}$" },
+    "time": { "type": "string", "format": "date-time" },
+    "region": { "const": "us-east-1" },
+    "resources": { "type": "array", "maxItems": 0 }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "source": { "const": "rct.consulting" },
+        "detail-type": { "const": "consulting.lead.created.v1" },
+        "detail": {
+          "type": "object",
+          "properties": {
+            "domain": { "const": "consulting" },
+            "data": { "$ref": "#/definitions/leadCreated" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "source": { "const": "rct.consulting" },
+        "detail-type": { "const": "consulting.lead.count.adjusted.v1" },
+        "detail": {
+          "type": "object",
+          "properties": {
+            "domain": { "const": "consulting" },
+            "data": { "$ref": "#/definitions/countAdjustment" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "source": { "const": "rct.dotcom" },
+        "detail-type": { "const": "dotcom.mentor.approved.v1" },
+        "detail": {
+          "type": "object",
+          "properties": {
+            "domain": { "const": "dotcom" },
+            "data": { "$ref": "#/definitions/mentorApproved" }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "source": { "const": "rct.dotcom" },
+        "detail-type": { "const": "dotcom.mentor.approval.count.adjusted.v1" },
+        "detail": {
+          "type": "object",
+          "properties": {
+            "domain": { "const": "dotcom" },
+            "data": { "$ref": "#/definitions/countAdjustment" }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "reportingMonth": { "type": "string", "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$" },
+    "detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventId", "schemaVersion", "occurredAt", "correlationId", "domain", "data"],
+      "properties": {
+        "eventId": { "type": "string", "format": "uuid" },
+        "schemaVersion": { "const": 1 },
+        "occurredAt": { "type": "string", "format": "date-time" },
+        "correlationId": { "type": "string", "format": "uuid" },
+        "domain": { "enum": ["consulting", "dotcom"] },
+        "data": { "type": "object" }
+      }
+    },
+    "leadCreated": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportingMonth", "leadCount"],
+      "properties": {
+        "reportingMonth": { "$ref": "#/definitions/reportingMonth" },
+        "leadCount": { "const": 1 }
+      }
+    },
+    "mentorApproved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportingMonth", "mentorCount"],
+      "properties": {
+        "reportingMonth": { "$ref": "#/definitions/reportingMonth" },
+        "mentorCount": { "const": 1 }
+      }
+    },
+    "countAdjustment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reportingMonth", "countDelta", "reasonCode"],
+      "properties": {
+        "reportingMonth": { "$ref": "#/definitions/reportingMonth" },
+        "countDelta": { "type": "integer", "minimum": -1000000, "maximum": 1000000, "not": { "const": 0 } },
+        "reasonCode": { "enum": ["duplicate", "voided", "data_correction", "backfill"] }
+      }
+    }
+  }
+}

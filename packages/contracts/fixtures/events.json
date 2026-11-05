@@ -1,0 +1,50 @@
+[
+  {
+    "source": "rct.consulting",
+    "detail-type": "consulting.lead.created.v1",
+    "detail": {
+      "eventId": "00000000-0000-4000-8000-000000000001",
+      "schemaVersion": 1,
+      "occurredAt": "2026-11-05T16:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000010",
+      "domain": "consulting",
+      "data": { "reportingMonth": "2026-11", "leadCount": 1 }
+    }
+  },
+  {
+    "source": "rct.dotcom",
+    "detail-type": "dotcom.mentor.approved.v1",
+    "detail": {
+      "eventId": "00000000-0000-4000-8000-000000000002",
+      "schemaVersion": 1,
+      "occurredAt": "2026-11-05T16:01:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000020",
+      "domain": "dotcom",
+      "data": { "reportingMonth": "2026-11", "mentorCount": 1 }
+    }
+  },
+  {
+    "source": "rct.consulting",
+    "detail-type": "consulting.lead.count.adjusted.v1",
+    "detail": {
+      "eventId": "00000000-0000-4000-8000-000000000003",
+      "schemaVersion": 1,
+      "occurredAt": "2026-12-01T10:00:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000010",
+      "domain": "consulting",
+      "data": { "reportingMonth": "2026-11", "countDelta": -1, "reasonCode": "duplicate" }
+    }
+  },
+  {
+    "source": "rct.dotcom",
+    "detail-type": "dotcom.mentor.approval.count.adjusted.v1",
+    "detail": {
+      "eventId": "00000000-0000-4000-8000-000000000004",
+      "schemaVersion": 1,
+      "occurredAt": "2026-12-01T10:01:00Z",
+      "correlationId": "00000000-0000-4000-8000-000000000020",
+      "domain": "dotcom",
+      "data": { "reportingMonth": "2026-11", "countDelta": -1, "reasonCode": "voided" }
+    }
+  }
+]

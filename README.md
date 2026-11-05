@@ -1,4 +1,32 @@
-# Getting Started with Create React App
+# Community portfolio foundation
+
+This private repository is moving toward CUT BLOCK Development (provisional
+display brand), initially an adults-only tech/mentorship pilot. See the
+[domain and release ADR](docs/adr/0001-domain-and-release-boundaries.md).
+The approved default-branch migration is `master` to `main`.
+
+The initial foundation adds strict, pinned reporting contracts without changing
+the legacy site, collecting participant data, or deploying AWS resources.
+
+```sh
+nvm use
+npm ci --workspace @rct/portfolio-contracts --include-workspace-root=false --ignore-scripts --no-audit --no-fund
+npm run test:contracts
+```
+
+[Contract documentation](packages/contracts/README.md) describes pin updates and
+historical approval-count semantics. Approval counts are not current active
+mentors. CI validates only the new contract workspace and pinned-file integrity,
+not the legacy frontend or operational safeguarding. Frontend/API/auth/CDK
+foundation and staging releases follow separately. Node 24 is for the new
+foundation, not a claim of CRA compatibility.
+
+CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
+4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.
+The single lockfile is updated to npm's current format; frontend migration is
+still pending.
+
+## Legacy development commands (historical)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
