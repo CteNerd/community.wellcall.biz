@@ -23,6 +23,17 @@ test("development foundation has private hosting, no DNS writes, and protected i
   template.hasResourceProperties("AWS::ApiGatewayV2::Route", {
     RouteKey: "GET /me", AuthorizationType: "JWT", AuthorizerId: Match.anyValue(),
   });
+  const [poolId] = Object.keys(template.findResources("AWS::Cognito::UserPool"));
+  const [clientId] = Object.keys(template.findResources("AWS::Cognito::UserPoolClient"));
+  assert.ok(poolId);
+  assert.ok(clientId);
+  template.hasResourceProperties("AWS::ApiGatewayV2::Authorizer", {
+    AuthorizerType: "JWT",
+    JwtConfiguration: {
+      Issuer: { "Fn::Join": ["", ["https://", { "Fn::GetAtt": [poolId, "ProviderURL"] }]] },
+      Audience: [{ Ref: clientId }],
+    },
+  });
   template.resourceCountIs("AWS::ApiGatewayV2::Route", 2);
   template.hasResourceProperties("AWS::Cognito::UserPool", {
     AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }, MfaConfiguration: "ON",

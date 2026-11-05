@@ -113,7 +113,7 @@ export class ApplicationStack extends Stack {
     api.addRoutes({ path: "/health", methods: [apigateway.HttpMethod.GET], integration });
     api.addRoutes({
       path: "/me", methods: [apigateway.HttpMethod.GET], integration,
-      authorizer: new HttpJwtAuthorizer("Cognito", pool.userPoolProviderUrl, { jwtAudience: [client.userPoolClientId] }),
+      authorizer: new HttpJwtAuthorizer("Cognito", `https://${pool.userPoolProviderUrl}`, { jwtAudience: [client.userPoolClientId] }),
     });
     if (zone && certificate && config.apiDomain) {
       const domain = new apigateway.DomainName(this, "ApiDomain", { domainName: config.apiDomain, certificate });
