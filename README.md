@@ -18,13 +18,20 @@ npm run test:contracts
 historical approval-count semantics. Approval counts are not current active
 mentors. CI validates only the new contract workspace and pinned-file integrity,
 not the legacy frontend or operational safeguarding. Frontend/API/auth/CDK
-foundation and staging releases follow separately. Node 24 is for the new
+foundation and development releases follow separately. Node 24 is for the new
 foundation, not a claim of CRA compatibility.
 
 CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
 4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.
 The single lockfile is updated to npm's current format; frontend migration is
 still pending.
+
+Confirmed hosts are `cutblock.org`, `dev.cutblock.org` and `api.cutblock.org`.
+Reuse the registered Route 53 zone. The roadmap includes technology, AI,
+mentorship, athletic training, fitness and future facilities; only the approved
+adult pilot is initially enabled. Brand clearance, certificates, cutover and
+protected production approval remain gates; no automatic production scaffolding
+deployment is permitted.
 
 ## Legacy development commands (historical)
 
