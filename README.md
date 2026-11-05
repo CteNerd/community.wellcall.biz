@@ -5,26 +5,36 @@ display brand), initially an adults-only tech/mentorship pilot. See the
 [domain and release ADR](docs/adr/0001-domain-and-release-boundaries.md).
 The approved default-branch migration is `master` to `main`.
 
-The initial foundation adds strict, pinned reporting contracts without changing
-the legacy site, collecting participant data, or deploying AWS resources.
+The foundation adds pinned reporting contracts, a typed React preview, API and
+mentor-assignment policy tests, and offline CDK stacks. The legacy site remains;
+no participant collection or AWS deployment is enabled.
 
 ```sh
 nvm use
-npm ci --workspace @rct/portfolio-contracts --include-workspace-root=false --ignore-scripts --no-audit --no-fund
+npm ci --workspaces --include-workspace-root=false --no-audit --no-fund
+npm run check:foundation
 npm run test:contracts
+npm run build:web
+npm run dev:web
 ```
 
 [Contract documentation](packages/contracts/README.md) describes pin updates and
 historical approval-count semantics. Approval counts are not current active
-mentors. CI validates only the new contract workspace and pinned-file integrity,
-not the legacy frontend or operational safeguarding. Frontend/API/auth/CDK
-foundation and development releases follow separately. Node 24 is for the new
-foundation, not a claim of CRA compatibility.
+mentors. CI checks modern workspaces, lint, dependency advisories, pins, preview
+build and both environment synths, not the legacy frontend or operational
+safeguarding. Node 24 is for the new foundation, not a claim of CRA compatibility.
+The preview opens no enrollment and collects no data; the roadmap is not an
+operating program or legal-status claim. Policies must be wired to trusted
+server-loaded records in future business APIs. Youth participation remains gated.
+See the [infrastructure/release runbook](infra/README.md).
 
 CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
 4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.
 The single lockfile is updated to npm's current format; frontend migration is
 still pending.
+Compatible ESLint 7 minimatch/semver overrides and scoped lockfile patches
+address peers pulled into modern tooling. Moderate minimatch advisories remain
+in current CDK/ESLint tooling; CI reports them and fails at high severity.
 
 Confirmed hosts are `cutblock.org`, `dev.cutblock.org` and `api.cutblock.org`.
 Reuse the registered Route 53 zone. The roadmap includes technology, AI,

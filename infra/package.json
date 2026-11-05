@@ -1,0 +1,22 @@
+{
+  "name": "@rct/community-infra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit && node --test src/*.test.ts",
+    "lint": "cd .. && eslint --config infra/eslint.config.mjs apps infra/src packages/domain",
+    "synth:development": "cdk synth -c environment=development -c account=123456789012 --output cdk.out/development --quiet",
+    "synth:production": "cdk synth -c environment=production -c account=123456789012 --output cdk.out/production --quiet"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "aws-cdk": "2.1148.0",
+    "aws-cdk-lib": "2.275.0",
+    "constructs": "10.8.1",
+    "esbuild": "0.28.2",
+    "eslint": "10.14.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.1"
+  }
+}

@@ -11,6 +11,8 @@ node_modules/
 # production
 /build
 /dist
+apps/*/dist/
+cdk.out/
 .eslintcache
 
 # misc

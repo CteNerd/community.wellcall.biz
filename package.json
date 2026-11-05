@@ -3,7 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "packages/contracts"
+    "packages/contracts",
+    "packages/domain",
+    "apps/api",
+    "apps/web",
+    "infra"
   ],
   "dependencies": {
     "@ant-design/icons": "^4.4.0",
@@ -24,12 +28,23 @@
     "web-vitals": "^0.2.4"
   },
   "scripts": {
+    "check:foundation": "npm run check --workspaces",
+    "build:web": "npm run build --workspace @rct/community-web",
+    "dev:web": "npm run dev --workspace @rct/community-web",
+    "cdk:synth:development": "npm run synth:development --workspace @rct/community-infra",
+    "cdk:synth:production": "npm run synth:production --workspace @rct/community-infra",
     "test:contracts": "npm run check --workspace @rct/portfolio-contracts && node packages/contracts/src/verify-pin.ts",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "format": "prettier --write \"**/*.+(js|jsx|ts|tsx|json|yml|yaml|css|md|vue)\"",
     "eject": "react-scripts eject"
+  },
+  "overrides": {
+    "eslint@7": {
+      "minimatch": "3.1.5",
+      "semver": "7.8.6"
+    }
   },
   "eslintConfig": {
     "extends": [
