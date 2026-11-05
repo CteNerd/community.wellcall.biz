@@ -35,6 +35,27 @@ test("accepts AWS delivery metadata but preserves the immutable domain ID", () =
   assert.equal(event.source, lead.source);
 });
 
+test("rejects leap seconds at validation and publishing boundaries while accepting normal offsets", () => {
+  const bus = "arn:aws:events:us-east-1:123456789012:event-bus/rct-portfolio-staging";
+  for (const timestamp of ["2016-12-31T23:59:60Z", "2017-01-01T00:59:60+01:00"]) {
+    for (const input of [
+      { ...lead, detail: { ...lead.detail, occurredAt: timestamp } },
+      { ...lead, time: timestamp },
+    ]) {
+      assert.throws(() => parseReportingEvent(input), InvalidReportingEventError);
+      assert.throws(() => toPutEventsEntry(input, bus), InvalidReportingEventError);
+    }
+  }
+  for (const occurredAt of [
+    "2016-12-31T23:59:59Z",
+    "2017-01-01T00:00:00.123Z",
+    "2017-01-01T01:00:00+01:00",
+  ]) {
+    const event = parseReportingEvent({ ...lead, detail: { ...lead.detail, occurredAt } });
+    assert.equal(event.detail.occurredAt, occurredAt);
+  }
+});
+
 test("rejects spoofed sources, unknown versions and identity-bearing payloads", () => {
   const invalid = [
     null,

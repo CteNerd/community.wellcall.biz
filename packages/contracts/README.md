@@ -32,6 +32,11 @@ detached copy. The schema allows only explicitly listed AWS delivery metadata;
 transport IDs are not business IDs. No coercion, defaulting, field removal or
 unknown-field acceptance is enabled.
 
+Timestamps use RFC 3339 date/time with UTC or numeric offsets and seconds 00-59.
+Leap seconds are rejected in both `detail.occurredAt` and optional transport
+`time`, because the JavaScript projection clock cannot represent them. They are
+not silently rounded into a different business timestamp.
+
 `toPutEventsEntry(event, busArn)` validates before serialization and separates
 AWS `Source`/`DetailType` from JSON `Detail`. It does not publish or select an
 environment. IAM must restrict the caller to its exact environment bus and
