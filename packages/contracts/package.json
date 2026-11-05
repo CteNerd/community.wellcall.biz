@@ -1,0 +1,19 @@
+{
+  "name": "@rct/portfolio-contracts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "engines": { "node": ">=24 <25" },
+  "scripts": {
+    "check": "tsc --noEmit && node --test src/*.test.ts"
+  },
+  "dependencies": {
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3"
+  }
+}
