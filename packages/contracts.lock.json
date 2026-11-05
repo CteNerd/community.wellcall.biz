@@ -2,7 +2,7 @@
   "version": 1,
   "authority": {
     "repository": "CteNerd/roddy.tomlin.life",
-    "commit": "6b91a720c76c7e439a9fdfb61b2dc42bee613081"
+    "commit": "fbefd7e0532aaed988664ad9a1b441d21ef9d9c4"
   },
   "files": {
     "packages/contracts/README.md": "556e89c76aca4b2bd9fb263033a3cf4a884ce013ff7d860448f4857994c50265",
@@ -10,7 +10,7 @@
     "packages/contracts/package.json": "67001cb94795edd1746c0344c3da1d2e32259a62a4e9898f367354417ff74362",
     "packages/contracts/schemas/reporting-event.v1.schema.json": "a4f9acb42cbaa05d9240ca616caf62292673ac563da2a72520a1d6cecdcaf2c2",
     "packages/contracts/src/index.test.ts": "65aab7f8dcf317cee381d81806f4458b0f9a4b4b0cfbf2769a4333610b3bc052",
-    "packages/contracts/src/index.ts": "24f1042cbfa5a829dc5075d381a1b3756340d785b009532835caf19fa1b461bf",
+    "packages/contracts/src/index.ts": "f2a2fb09245923093d72077056da1f382922225cd1e5c177333b83fdb723ae54",
     "packages/contracts/src/verify-pin.test.ts": "607de8d00921657dcf1e110991320ee1149a96b689dad073ab9b720a2f67cc2a",
     "packages/contracts/src/verify-pin.ts": "a456d00d6e7c50128dbfcf73ebe567ded6b0ba05a740ec3b680342f90a52d15e",
     "packages/contracts/tsconfig.json": "c5077519831c877b6ee27e4b37d08a04a6c86d7d134fbb92727a058025dc86b3"

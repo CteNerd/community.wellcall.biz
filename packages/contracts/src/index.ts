@@ -1,6 +1,6 @@
 import { Ajv } from "ajv";
 import addFormats from "ajv-formats";
-import { readFileSync } from "node:fs";
+import schema from "../schemas/reporting-event.v1.schema.json" with { type: "json" };
 
 type Detail<Domain, Data> = {
   eventId: string;
@@ -38,9 +38,6 @@ export type ReportingEvent =
       detail: Detail<"dotcom", Adjustment>;
     };
 
-const schema = JSON.parse(
-  readFileSync(new URL("../schemas/reporting-event.v1.schema.json", import.meta.url), "utf8"),
-);
 const ajv = new Ajv({ strict: true, allErrors: true });
 addFormats(ajv);
 const validate = ajv.compile<ReportingEvent>(schema);
