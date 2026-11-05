@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.foundation.json",
+  "compilerOptions": { "exactOptionalPropertyTypes": false },
+  "include": ["src/**/*.ts"]
+}
