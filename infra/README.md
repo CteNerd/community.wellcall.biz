@@ -1,6 +1,6 @@
 # Community infrastructure foundation
 
-This is reviewed source, not a deployment authorization or enrollment launch.
+This is reviewable source, not a deployment authorization or enrollment launch.
 Run from the repository root with Node 24 and npm 11.6.2:
 
 ```sh

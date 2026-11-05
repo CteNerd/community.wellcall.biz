@@ -1,4 +1,4 @@
-name: Contract foundation
+name: Application foundation
 
 on:
   pull_request:
@@ -19,6 +19,12 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --global npm@11.6.2 --no-audit --no-fund
-      - name: Install only the new contract workspace
-        run: npm ci --workspace @rct/portfolio-contracts --include-workspace-root=false --ignore-scripts --no-audit --no-fund
-      - run: npm run test:contracts
+      - name: Install modern workspaces without the legacy CRA application
+        run: npm ci --workspaces --include-workspace-root=false --no-audit --no-fund
+      - run: npm run lint --workspace @rct/community-infra
+      - run: npm run check:foundation
+      - run: node packages/contracts/src/verify-pin.ts
+      - run: npm run build:web
+      - run: npm audit --workspaces --include-workspace-root=false --audit-level=high
+      - run: npm run cdk:synth:development
+      - run: npm run cdk:synth:production
