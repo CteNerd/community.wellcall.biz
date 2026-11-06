@@ -1,0 +1,90 @@
+name: Publish development web preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-development
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: development
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      AWS_WEB_PUBLISH_ROLE_ARN: ${{ vars.AWS_WEB_PUBLISH_ROLE_ARN }}
+      AWS_PAGER: ""
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.6.2 --no-audit --no-fund
+      - run: npm ci --workspaces --include-workspace-root=false --no-audit --no-fund
+      - name: Validate manual development release configuration
+        run: node infra/src/check-web-release.ts environment
+      - run: npm run lint --workspace @rct/community-infra
+      - run: npm run check:foundation
+      - run: node packages/contracts/src/verify-pin.ts
+      - run: npm audit --workspaces --include-workspace-root=false --audit-level=high
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_WEB_PUBLISH_ROLE_ARN }}
+          aws-region: us-east-1
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+          role-duration-seconds: 1800
+          mask-aws-account-id: true
+      - name: Read and validate the existing development stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws cloudformation describe-stacks --stack-name rct-dotcom-development-foundation > "$RUNNER_TEMP/preview-stack.json"
+          node infra/src/check-web-release.ts stack "$RUNNER_TEMP/preview-stack.json"
+      - name: Verify destination ownership and API readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3api get-bucket-location --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > /dev/null
+          aws s3api get-public-access-block --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > "$RUNNER_TEMP/preview-access-block.json"
+          aws s3api get-bucket-policy-status --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > "$RUNNER_TEMP/preview-policy-status.json"
+          node infra/src/check-web-release.ts bucket "$RUNNER_TEMP/preview-access-block.json" "$RUNNER_TEMP/preview-policy-status.json"
+          aws cloudfront get-distribution --id "$PREVIEW_DISTRIBUTION_ID" > "$RUNNER_TEMP/preview-distribution.json"
+          node infra/src/check-web-release.ts distribution "$RUNNER_TEMP/preview-distribution.json"
+          curl --fail --retry 3 --retry-all-errors --max-time 30 --silent --show-error "$PREVIEW_API_URL/health" > "$RUNNER_TEMP/preview-health.json"
+          node infra/src/check-web-release.ts health "$RUNNER_TEMP/preview-health.json"
+          status=$(curl --max-time 30 --silent --show-error --output /dev/null --write-out "%{http_code}" "$PREVIEW_API_URL/me")
+          test "$status" = "401"
+      - run: npm run build:web
+      - name: Publish only the modern preview output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s apps/web/dist/index.html
+          aws s3 sync apps/web/dist/ "s3://$PREVIEW_BUCKET/" --exclude "*" --include "assets/*" --cache-control "public,max-age=31536000,immutable" --only-show-errors
+          aws s3 cp apps/web/dist/index.html "s3://$PREVIEW_BUCKET/index.html" --content-type "text/html" --cache-control "no-cache" --only-show-errors
+          invalidation=$(aws cloudfront create-invalidation --distribution-id "$PREVIEW_DISTRIBUTION_ID" --paths "/*" --query Invalidation.Id --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "$PREVIEW_DISTRIBUTION_ID" --id "$invalidation"
+      - name: Verify the published entry point
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --retry 5 --retry-all-errors --max-time 30 --silent --show-error "$PREVIEW_WEB_URL/" > "$RUNNER_TEMP/published-preview.html"
+          cmp apps/web/dist/index.html "$RUNNER_TEMP/published-preview.html"
+          for asset in apps/web/dist/assets/*; do
+            test -f "$asset"
+            name=$(basename "$asset")
+            curl --fail --retry 3 --retry-all-errors --max-time 30 --silent --show-error "$PREVIEW_WEB_URL/assets/$name" > "$RUNNER_TEMP/published-asset"
+            cmp "$asset" "$RUNNER_TEMP/published-asset"
+          done
+          printf 'Development preview: %s\n\nEnrollment remains closed.\n' "$PREVIEW_WEB_URL" >> "$GITHUB_STEP_SUMMARY"

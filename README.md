@@ -24,9 +24,19 @@ mentors. CI checks modern workspaces, lint, dependency advisories, pins, preview
 build and both environment synths, not the legacy frontend or operational
 safeguarding. Node 24 is for the new foundation, not a claim of CRA compatibility.
 The preview opens no enrollment and collects no data; the roadmap is not an
-operating program or legal-status claim. Policies must be wired to trusted
-server-loaded records in future business APIs. Youth participation remains gated.
-See the [infrastructure/release runbook](infra/README.md).
+operating program or legal-status claim. The domain now includes a tested
+adult-application review transition that blocks approval without verified adult
+eligibility, current consent and (for mentors) completed screening. This is not
+an application endpoint or a verified screening process; policy and operational
+gates remain unresolved, and youth participation remains gated. See the
+[infrastructure/release runbook](infra/README.md).
+
+A manual development web-publishing workflow is prepared for `main` after a
+reviewed foundation bootstrap. Configure `AWS_ACCOUNT_ID` and
+`AWS_WEB_PUBLISH_ROLE_ARN` as development environment variables; no AWS keys are
+needed. It publishes only the modern preview to the stack's generated CloudFront
+URL, without deploying infrastructure or opening enrollment. See the runbook
+for activation and remaining live checks.
 
 CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
 4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.

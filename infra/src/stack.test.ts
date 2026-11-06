@@ -52,6 +52,36 @@ test("production records and identities are retained with PITR and deletion prot
     }),
   });
   template.hasResource("AWS::Cognito::UserPool", { DeletionPolicy: "Retain" });
+  template.resourceCountIs("AWS::IAM::ManagedPolicy", 0);
+});
+
+test("development web publisher has exact OIDC trust and a matching artifact-only permissions boundary", () => {
+  const template = Template.fromStack(new ApplicationStack(new App(), configuration("development", "123456789012")));
+  template.resourceCountIs("AWS::IAM::OIDCProvider", 0);
+  const publisher = Object.values(template.findResources("AWS::IAM::Role")).find((role) =>
+    role.Properties.RoleName === "rct-dotcom-development-web-publish");
+  assert.ok(publisher);
+  assert.deepEqual(publisher.Properties.PermissionsBoundary, publisher.Properties.ManagedPolicyArns[0]);
+  assert.deepEqual(publisher.Properties.AssumeRolePolicyDocument.Statement[0].Condition.StringEquals, {
+    "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+    "token.actions.githubusercontent.com:sub": "repo:CteNerd/community.wellcall.biz:environment:development",
+  });
+  const policies = JSON.stringify(template.findResources("AWS::IAM::ManagedPolicy"));
+  const [bucketId] = Object.keys(template.findResources("AWS::S3::Bucket"));
+  assert.ok(bucketId);
+  template.hasResourceProperties("AWS::IAM::ManagedPolicy", {
+    PolicyDocument: {
+      Statement: Match.arrayWith([Match.objectLike({
+        Action: ["s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:ListBucket"],
+        Resource: { "Fn::GetAtt": [bucketId, "Arn"] },
+      })]),
+    },
+  });
+  assert.match(policies, /s3:PutObject/);
+  assert.match(policies, /assets\/\*|index\.html/);
+  assert.match(policies, /cloudfront:CreateInvalidation/);
+  assert.match(policies, /cloudformation:DescribeStacks/);
+  assert.doesNotMatch(policies, /DeleteObject|PutBucket|UpdateDistribution|CreateStack|ExecuteChangeSet|iam:|dynamodb:|"Resource":"\*"/);
 });
 
 test("custom domains import the approved zone and cannot bypass production clearance", () => {

@@ -87,6 +87,47 @@ export class ApplicationStack extends Stack {
         logoutUrls: [webOrigin],
       },
     });
+    if (!production) {
+      const publisherPolicy = new iam.ManagedPolicy(this, "WebPublishPolicy", {
+        description: "Development web artifacts only; no infrastructure, identity or application data mutations",
+        statements: [
+          new iam.PolicyStatement({
+            actions: ["s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:ListBucket"],
+            resources: [bucket.bucketArn],
+          }),
+          new iam.PolicyStatement({
+            actions: ["s3:GetObject", "s3:PutObject"],
+            resources: [bucket.arnForObjects("assets/*"), bucket.arnForObjects("index.html")],
+          }),
+          new iam.PolicyStatement({
+            actions: ["cloudfront:GetDistribution", "cloudfront:CreateInvalidation", "cloudfront:GetInvalidation"],
+            resources: [distribution.distributionArn],
+          }),
+          new iam.PolicyStatement({
+            actions: ["cloudformation:DescribeStacks"],
+            resources: [this.stackId],
+          }),
+        ],
+      });
+      const provider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+        this, "ExistingWebGitHubProvider",
+        `arn:${this.partition}:iam::${this.account}:oidc-provider/token.actions.githubusercontent.com`,
+      );
+      const publisherRole = new iam.Role(this, "WebPublisher", {
+        roleName: `${config.prefix}-web-publish`,
+        path: "/rct/dotcom/development/",
+        assumedBy: new iam.WebIdentityPrincipal(provider.openIdConnectProviderArn, {
+          StringEquals: {
+            "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+            "token.actions.githubusercontent.com:sub": "repo:CteNerd/community.wellcall.biz:environment:development",
+          },
+        }),
+        managedPolicies: [publisherPolicy],
+        permissionsBoundary: publisherPolicy,
+        maxSessionDuration: Duration.hours(1),
+      });
+      new CfnOutput(this, "WebPublishRoleArn", { value: publisherRole.roleArn });
+    }
     const logGroup = new logs.LogGroup(this, "ApiLogs", {
       logGroupName: `/rct/${config.prefix}/api`,
       retention: production ? logs.RetentionDays.ONE_MONTH : logs.RetentionDays.ONE_WEEK,
