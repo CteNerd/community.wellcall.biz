@@ -46,20 +46,61 @@ Production also configures `api.cutblock.org` and requires
 `brandLaunchApproved=true`; the flag is not legal or deployment approval.
 
 Generated CloudFront URLs use the default CloudFront certificate/security
-policy; custom certificates use TLS 1.2. Enable the approved development custom
-domain before a shared preview release. Verify delegation, certificate issuance
-and change sets; never replace unrelated Route 53 records.
+policy; custom certificates use TLS 1.2. The development publisher supports only
+generated CloudFront/API URLs with no DNS changes. Custom-domain publishing
+needs a separately reviewed validator extension. Verify delegation, certificate
+issuance and change sets; never replace unrelated Route 53 records.
 
-Deployment workflows are not enabled. First review environment-scoped OIDC
-trust, restricted CloudFormation execution/pass-role, development smoke tests,
-budget receipt and mandatory protected production approval. Expected future
-environment inputs: `AWS_ACCOUNT_ID`, `AWS_REGION`, `AWS_DEPLOY_ROLE_ARN`,
-and validated output-based smoke URLs. No AWS keys in GitHub secrets.
+## Manual development web releases
+
+`Publish development web preview` is manual and main-only, using the existing
+GitHub `development` environment. It publishes only the modern static preview;
+it does not create stacks, deploy APIs, collect applications, modify DNS or
+release production.
+
+Before first use, an authorized operator must review and create
+`rct-dotcom-development-foundation` with approved bootstrap/CloudFormation
+execution permissions in the verified real account. Confirm budget/rollback
+gates. The existing GitHub OIDC provider must include `sts.amazonaws.com`;
+the stack imports it rather than recreating it. Do not deploy the synthetic CI
+assembly or widen the shared bootstrap role. Infrastructure automation remains
+outstanding.
+
+Development source defines a web publisher with the same narrowly scoped managed
+policy as both identity grant and permissions boundary. It can list/read the
+own bucket location, GetObject/PutObject only `assets/*` and `index.html`,
+invalidate/read its own CloudFront distribution and describe only its own stack.
+It cannot delete objects, manage infrastructure/identities, touch business data
+or publish production. OIDC trust requires this exact repository, `development`
+environment and STS audience. Preserve the environment's single main-only branch
+policy; the environment OIDC subject itself does not encode the branch.
+
+Configure exactly these **development environment variables**, not secrets:
+
+| Variable | Value |
+| --- | --- |
+| `AWS_ACCOUNT_ID` | Verified real 12-digit account; not the CI synthetic account. |
+| `AWS_WEB_PUBLISH_ROLE_ARN` | The deployed stack's `WebPublishRoleArn` output. |
+
+Region is fixed to `us-east-1`. Bucket/distribution/API URLs come from validated
+stack outputs. No AWS keys or client secrets belong in GitHub secrets.
+
+After merge and bootstrap, run the workflow manually on `main`. Modern checks,
+the high-severity audit, destination ownership/private-origin validation and API
+health/anonymous-identity denial must pass before upload. Hashed assets upload
+before the entry point, without deleting old files. It waits for invalidation
+and compares the live HTML and every emitted asset byte-for-byte to the build before reporting a URL.
+Enrollment remains closed; no Community sign-in/application UI is introduced.
+The publisher is implemented independently in each repository to preserve
+separate ownership and release boundaries.
 
 Rollback source with a reviewed revert PR, then inspect/redeploy the last
 approved stack/artifacts with the correct environment role. Never delete
 stacks, tables, identities or DNS as a shortcut. Rehearse data/auth recovery;
 retained resources and PITR are safeguards, not proof of a working restore.
+For web-only rollback, merge a reviewed revert and run the publisher again.
+Old hashed assets are retained; this is not an artifact-history rollback system
+or a verified recovery rehearsal.
 
 Infrastructure alone disables `exactOptionalPropertyTypes` to accommodate CDK's
 optional-interface declarations; strict TS and app/API/domain exact-optionals

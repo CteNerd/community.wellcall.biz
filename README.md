@@ -31,6 +31,13 @@ an application endpoint or a verified screening process; policy and operational
 gates remain unresolved, and youth participation remains gated. See the
 [infrastructure/release runbook](infra/README.md).
 
+A manual development web-publishing workflow is prepared for `main` after a
+reviewed foundation bootstrap. Configure `AWS_ACCOUNT_ID` and
+`AWS_WEB_PUBLISH_ROLE_ARN` as development environment variables; no AWS keys are
+needed. It publishes only the modern preview to the stack's generated CloudFront
+URL, without deploying infrastructure or opening enrollment. See the runbook
+for activation and remaining live checks.
+
 CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
 4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.
 The single lockfile is updated to npm's current format; frontend migration is
