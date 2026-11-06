@@ -30,7 +30,7 @@ test("development foundation has private hosting, no DNS writes, and protected i
   template.hasResourceProperties("AWS::ApiGatewayV2::Authorizer", {
     AuthorizerType: "JWT",
     JwtConfiguration: {
-      Issuer: { "Fn::Join": ["", ["https://", { "Fn::GetAtt": [poolId, "ProviderURL"] }]] },
+      Issuer: { "Fn::GetAtt": [poolId, "ProviderURL"] },
       Audience: [{ Ref: clientId }],
     },
   });
