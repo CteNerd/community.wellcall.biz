@@ -1,7 +1,7 @@
 import { appendFileSync, readFileSync } from "node:fs";
-import { parsePreviewStack, validateReleaseEnvironment, verifyPreviewDistribution, verifyPreviewHealth } from "./web-release.ts";
+import { parsePreviewStack, validateReleaseEnvironment, verifyPreviewBucket, verifyPreviewDistribution, verifyPreviewHealth } from "./web-release.ts";
 
-const [operation, file] = process.argv.slice(2);
+const [operation, file, policyFile] = process.argv.slice(2);
 validateReleaseEnvironment(process.env);
 if (operation === "environment") {
   console.info("Development publishing environment validated");
@@ -19,6 +19,11 @@ if (operation === "environment") {
       "",
     ].join("\n"));
     console.info("Deployed development stack outputs validated");
+  } else if (operation === "bucket") {
+    if (!policyFile) throw new Error("A bucket policy-status JSON file is required");
+    const policyStatus: unknown = JSON.parse(readFileSync(policyFile, "utf8"));
+    verifyPreviewBucket(value, policyStatus);
+    console.info("Private development bucket validated");
   } else if (operation === "distribution") {
     const { PREVIEW_BUCKET, PREVIEW_DISTRIBUTION_ID, PREVIEW_WEB_URL } = process.env;
     if (!PREVIEW_BUCKET || !PREVIEW_DISTRIBUTION_ID || !PREVIEW_WEB_URL) {
@@ -32,6 +37,6 @@ if (operation === "environment") {
     verifyPreviewHealth(value);
     console.info("Development API health verified");
   } else {
-    throw new Error("Expected environment, stack, distribution or health operation");
+    throw new Error("Expected environment, stack, bucket, distribution or health operation");
   }
 }

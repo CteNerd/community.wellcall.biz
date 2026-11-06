@@ -63,6 +63,18 @@ export function verifyPreviewDistribution(value: unknown, release: Pick<PreviewR
   }
 }
 
+export function verifyPreviewBucket(accessBlock: unknown, policyStatus: unknown): void {
+  const config = isRecord(accessBlock) ? accessBlock.PublicAccessBlockConfiguration : undefined;
+  if (!isRecord(config) || config.BlockPublicAcls !== true || config.BlockPublicPolicy !== true
+    || config.IgnorePublicAcls !== true || config.RestrictPublicBuckets !== true) {
+    throw new Error("Preview bucket must enable all four public-access blocks");
+  }
+  const policy = isRecord(policyStatus) ? policyStatus.PolicyStatus : undefined;
+  if (!isRecord(policy) || policy.IsPublic !== false) {
+    throw new Error("Preview bucket policy must be confirmed non-public");
+  }
+}
+
 export function verifyPreviewHealth(value: unknown): void {
   if (!isRecord(value) || value.status !== "ok" || value.application !== "community") {
     throw new Error("Development API health did not identify the expected application");

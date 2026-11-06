@@ -67,6 +67,16 @@ test("development web publisher has exact OIDC trust and a matching artifact-onl
     "token.actions.githubusercontent.com:sub": "repo:CteNerd/community.wellcall.biz:environment:development",
   });
   const policies = JSON.stringify(template.findResources("AWS::IAM::ManagedPolicy"));
+  const [bucketId] = Object.keys(template.findResources("AWS::S3::Bucket"));
+  assert.ok(bucketId);
+  template.hasResourceProperties("AWS::IAM::ManagedPolicy", {
+    PolicyDocument: {
+      Statement: Match.arrayWith([Match.objectLike({
+        Action: ["s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:ListBucket"],
+        Resource: { "Fn::GetAtt": [bucketId, "Arn"] },
+      })]),
+    },
+  });
   assert.match(policies, /s3:PutObject/);
   assert.match(policies, /assets\/\*|index\.html/);
   assert.match(policies, /cloudfront:CreateInvalidation/);

@@ -92,7 +92,7 @@ export class ApplicationStack extends Stack {
         description: "Development web artifacts only; no infrastructure, identity or application data mutations",
         statements: [
           new iam.PolicyStatement({
-            actions: ["s3:GetBucketLocation", "s3:ListBucket"],
+            actions: ["s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:ListBucket"],
             resources: [bucket.bucketArn],
           }),
           new iam.PolicyStatement({

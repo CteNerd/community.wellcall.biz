@@ -56,6 +56,9 @@ jobs:
         run: |
           set -euo pipefail
           aws s3api get-bucket-location --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > /dev/null
+          aws s3api get-public-access-block --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > "$RUNNER_TEMP/preview-access-block.json"
+          aws s3api get-bucket-policy-status --bucket "$PREVIEW_BUCKET" --expected-bucket-owner "$AWS_ACCOUNT_ID" > "$RUNNER_TEMP/preview-policy-status.json"
+          node infra/src/check-web-release.ts bucket "$RUNNER_TEMP/preview-access-block.json" "$RUNNER_TEMP/preview-policy-status.json"
           aws cloudfront get-distribution --id "$PREVIEW_DISTRIBUTION_ID" > "$RUNNER_TEMP/preview-distribution.json"
           node infra/src/check-web-release.ts distribution "$RUNNER_TEMP/preview-distribution.json"
           curl --fail --retry 3 --retry-all-errors --max-time 30 --silent --show-error "$PREVIEW_API_URL/health" > "$RUNNER_TEMP/preview-health.json"

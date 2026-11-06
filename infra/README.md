@@ -68,7 +68,7 @@ outstanding.
 
 Development source defines a web publisher with the same narrowly scoped managed
 policy as both identity grant and permissions boundary. It can list/read the
-own bucket location, GetObject/PutObject only `assets/*` and `index.html`,
+own bucket location and public-access-block/policy status, GetObject/PutObject only `assets/*` and `index.html`,
 invalidate/read its own CloudFront distribution and describe only its own stack.
 It cannot delete objects, manage infrastructure/identities, touch business data
 or publish production. OIDC trust requires this exact repository, `development`
@@ -87,7 +87,9 @@ stack outputs. No AWS keys or client secrets belong in GitHub secrets.
 
 After merge and bootstrap, run the workflow manually on `main`. Modern checks,
 the high-severity audit, destination ownership/private-origin validation and API
-health/anonymous-identity denial must pass before upload. Hashed assets upload
+health/anonymous-identity denial must pass before upload. Bucket validation
+requires all four public-access blocks and an explicitly non-public policy;
+ownership and an OAC ID alone are not sufficient. Hashed assets upload
 before the entry point, without deleting old files. It waits for invalidation
 and compares the live HTML and every emitted asset byte-for-byte to the build before reporting a URL.
 Enrollment remains closed; no Community sign-in/application UI is introduced.

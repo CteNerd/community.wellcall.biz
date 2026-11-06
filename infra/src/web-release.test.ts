@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { parsePreviewStack, validateReleaseEnvironment, verifyPreviewDistribution, verifyPreviewHealth } from "./web-release.ts";
+import { parsePreviewStack, validateReleaseEnvironment, verifyPreviewBucket, verifyPreviewDistribution, verifyPreviewHealth } from "./web-release.ts";
 import { handler, type Request } from "../../apps/api/src/handler.ts";
 
 const account = "111122223333";
@@ -79,6 +79,23 @@ test("distribution verification rejects a different origin or disabled distribut
   assert.throws(() => verifyPreviewHealth({ status: "ok", application: "consulting" }));
 });
 
+test("bucket verification requires every public-access block and an explicitly non-public policy", () => {
+  const config = {
+    BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+  };
+  const policy = { PolicyStatus: { IsPublic: false } };
+  verifyPreviewBucket({ PublicAccessBlockConfiguration: config }, policy);
+  for (const key of Object.keys(config)) {
+    assert.throws(() => verifyPreviewBucket({ PublicAccessBlockConfiguration: { ...config, [key]: false } }, policy),
+      /public-access blocks/);
+  }
+  assert.throws(() => verifyPreviewBucket({}, policy), /public-access blocks/);
+  for (const unsafePolicy of [undefined, {}, { PolicyStatus: {} }, { PolicyStatus: { IsPublic: true } },
+    { PolicyStatus: { IsPublic: "false" } }]) {
+    assert.throws(() => verifyPreviewBucket({ PublicAccessBlockConfiguration: config }, unsafePolicy), /non-public/);
+  }
+});
+
 test("release CLI emits only validated destinations and exits unsuccessfully when configuration is absent", (t) => {
   const directory = mkdtempSync(join(tmpdir(), "community-release-test-"));
   t.after(() => rmSync(directory, { recursive: true }));
@@ -93,6 +110,22 @@ test("release CLI emits only validated destinations and exits unsuccessfully whe
   const output = readFileSync(environmentPath, "utf8");
   assert.match(output, /PREVIEW_API_URL=https:\/\/apitest\.execute-api\.us-east-1\.amazonaws\.com\n/);
   assert.equal(output.trim().split("\n").length, 4);
+  const accessBlockPath = join(directory, "access-block.json");
+  const policyPath = join(directory, "policy-status.json");
+  writeFileSync(accessBlockPath, JSON.stringify({ PublicAccessBlockConfiguration: {
+    BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+  } }));
+  writeFileSync(policyPath, JSON.stringify({ PolicyStatus: { IsPublic: false } }));
+  const privateBucket = spawnSync(process.execPath, [script, "bucket", accessBlockPath, policyPath], {
+    env: { ...process.env, ...env }, encoding: "utf8",
+  });
+  assert.equal(privateBucket.status, 0, privateBucket.stderr);
+  writeFileSync(policyPath, JSON.stringify({ PolicyStatus: { IsPublic: true } }));
+  const publicBucket = spawnSync(process.execPath, [script, "bucket", accessBlockPath, policyPath], {
+    env: { ...process.env, ...env }, encoding: "utf8",
+  });
+  assert.notEqual(publicBucket.status, 0);
+  assert.match(publicBucket.stderr, /non-public/);
   const missing = spawnSync(process.execPath, [script, "environment"], {
     env: { ...process.env, ...env, AWS_ACCOUNT_ID: "" }, encoding: "utf8",
   });
