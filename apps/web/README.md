@@ -1,8 +1,8 @@
-# CUT BLOCK public preview
+# CUT BLOCK public website and default preview
 
-This React/Vite site is a public-facing **development preview**, not an
-enrollment or application portal. CUT BLOCK Development is a provisional
-working brand. The approved meaning is **“Come Up Through Building, Learning,
+This React/Vite site defaults to a **development preview**, not an
+enrollment or application portal. Public production branding is approved.
+The approved meaning is **“Come Up Through Building, Learning,
 Opportunity & Competition”**; the public copy must not substitute a different
 expansion.
 
@@ -12,7 +12,7 @@ concepts only. It must not imply that any program, facility, application,
 mentor matching, or participant intake is operating. Youth participation
 remains out of scope until safeguarding and guardian workflows are reviewed.
 
-Keep the preview `noindex, nofollow`; do not add unverified contact details,
+Keep default preview builds `noindex, nofollow`; do not add unverified contact details,
 testimonials, outcomes, legal-status claims, external enrollment links, or
 collectable forms. The closed-state copy does not activate or replace the
 backend's independently gated, source-only application functionality.
@@ -24,10 +24,28 @@ npm run check --workspace @rct/community-web
 npm run build --workspace @rct/community-web
 ```
 
+Public production presentation is explicit, never inferred from Vite's `PROD`
+(preview builds are also optimized production builds):
+
+```sh
+VITE_COMMUNITY_PRESENTATION=production VITE_COMMUNITY_BRAND_LAUNCH_APPROVED=true npm run build:web
+```
+
+Both settings are required. The approved production page uses a CUT BLOCK
+heading, the exact approved meaning, public copy without preview/provisional
+labels, and the fixed `https://cutblock.org/` canonical/OG URL. It has no public
+noindex tag. This does not claim legal clearance, nonprofit status or operating
+programs. Enrollment remains closed, youth/facilities remain future-only,
+and `/internal` remains unconfigured/closed. The promotion workflow deliberately
+does not inject auth, readiness or intake settings. The same candidate can be
+staged on development only after its CloudFront noindex headers are deployed.
+Both environments return noindex headers for the exact internal entry points.
+
 ## Source-only internal workspace
 
 `/internal` is closed by default, with no public navigation link or application
-form. The rich public `/` preview stays unchanged, provisional, and noindex.
+form. The default public `/` preview stays provisional and noindex; approved
+production presentation is independent of internal configuration.
 Authenticated status/withdrawal remain usable when new intake is closed.
 
 All of these explicit **build-time public settings** are required to expose
@@ -76,10 +94,10 @@ select detail from the page, record completed adult/screening checks, then
 approve/reject. Conflicts clear stale detail and require explicit refresh.
 Approval alone does not start enrollment, matching, youth, or athletics.
 
-Development infrastructure source adds a hosted-login domain, exact `/internal`
+Both infrastructure environments include a hosted-login domain, exact `/internal`
 or `/internal/` GET/HEAD static route rewrite (query preserved, unknown/asset
 paths untouched), and code-only client configuration. This has **not** been
-deployed. Production is unchanged. Real end-to-end integration still requires
+deployed by this change. Real end-to-end integration still requires
 reviewed stack migration, approved callback/CORS configuration, invitation-only
 MFA users and authorized reviewer membership, current consent/retention and
 eligibility/screening/escalation operating policies. Do not activate these gates

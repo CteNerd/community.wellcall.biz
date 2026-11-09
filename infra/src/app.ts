@@ -3,7 +3,8 @@ import { configuration } from "./config.ts";
 import { ApplicationStack } from "./stack.ts";
 
 const app = new App();
-const config = configuration(app.node.tryGetContext("environment"), app.node.tryGetContext("account"));
+const config = configuration(app.node.tryGetContext("environment"), app.node.tryGetContext("account"),
+  app.node.tryGetContext("existingDevelopmentCertificateArn"));
 const flag = (name: string) => {
   const value: unknown = app.node.tryGetContext(name);
   if (value === undefined || value === "false") return false;

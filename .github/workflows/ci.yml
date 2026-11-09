@@ -25,6 +25,12 @@ jobs:
       - run: npm run check:foundation
       - run: node packages/contracts/src/verify-pin.ts
       - run: npm run build:web
+      - name: Validate approved production presentation without synthetic fixtures
+        run: npm run build:web
+        env:
+          VITE_COMMUNITY_PRESENTATION: production
+          VITE_COMMUNITY_BRAND_LAUNCH_APPROVED: "true"
+          VITE_COMMUNITY_SYNTHETIC_UAT: "true"
       - run: npm audit --workspaces --include-workspace-root=false --audit-level=high
       - run: npm run cdk:synth:development
       - run: npm run cdk:synth:production

@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { test } from "node:test";
+import { createCandidate, digest, verifyCandidate } from "./web-candidate.ts";
+
+test("immutable candidate binds exact bytes, file inventory, reviewed SHA and manifest digest", (t) => {
+  const root = resolve(`.candidate-test-${randomUUID()}`);
+  const directory = resolve(root, "candidate");
+  mkdirSync(resolve(directory, "assets"), { recursive: true });
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const sha = "a".repeat(40);
+  const html = '<title>CUT BLOCK</title><link rel="canonical" href="https://cutblock.org/">';
+  writeFileSync(resolve(directory, "index.html"), html);
+  writeFileSync(resolve(directory, "assets/index-hash.js"), "closed-public-brand");
+  const value = createCandidate(directory, sha, "123-1");
+  const serialized = `${JSON.stringify(value, null, 2)}\n`;
+  const manifestPath = resolve(root, "manifest.json");
+  writeFileSync(manifestPath, serialized);
+  const hash = digest(serialized);
+  assert.deepEqual(verifyCandidate(directory, manifestPath, hash, sha), value);
+  assert.throws(() => verifyCandidate(directory, manifestPath, hash, "b".repeat(40)), /provenance/);
+  assert.throws(() => verifyCandidate(directory, manifestPath, "0".repeat(64), sha), /digest/);
+  writeFileSync(resolve(directory, "assets/index-hash.js"), "tampered");
+  assert.throws(() => verifyCandidate(directory, manifestPath, hash, sha), /digest/);
+  writeFileSync(resolve(directory, "assets/index-hash.js"), "closed-public-brand");
+  writeFileSync(resolve(directory, "assets/untracked.js"), "extra");
+  assert.throws(() => verifyCandidate(directory, manifestPath, hash, sha), /inventory/);
+  rmSync(resolve(directory, "assets/untracked.js"));
+  symlinkSync(resolve(directory, "index.html"), resolve(directory, "assets/link.js"));
+  assert.throws(() => verifyCandidate(directory, manifestPath, hash, sha), /symlinks/);
+  rmSync(resolve(directory, "assets/link.js"));
+  writeFileSync(resolve(directory, "index.html"), `${html}<meta name="robots" content="noindex">`);
+  assert.throws(() => createCandidate(directory, sha, "123-1"), /production metadata/);
+});
