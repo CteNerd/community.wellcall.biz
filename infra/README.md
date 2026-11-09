@@ -201,7 +201,8 @@ Operator prerequisites (not configured by this change):
 
 - Deploy reviewed development preservation/headers/routing and production
   backend/custom-domain/publisher source; no intake parameters may be opened.
-- Existing GitHub OIDC provider, reviewed bootstrap/execution roles and
+- Existing GitHub OIDC provider, isolated release-asset buckets, approved
+  current CLI credentials/explicit narrowly scoped execution roles and
   production portfolio bus SSM parameter
   `/rct/production/portfolio/event-bus-arn` must be available.
 - Protect **both** GitHub environments with main-only deployment branches;
@@ -236,40 +237,122 @@ historical artifacts. Backend rollback is a separate reviewed change set.
 ## Operator-only real-account change-set commands
 
 These are handoff commands, **not executed by this source change**. From `infra/`,
-after reviewed bootstrap/IAM and with the operator's approved AWS profile:
+with the parent's explicitly approved current CLI credentials. The
+`CliCredentialsStackSynthesizer` does not assume deployment, publishing, lookup
+or CloudFormation-execution roles and emits no CDK bootstrap SSM dependency.
+Do not pass a shared CDKToolkit role or use `cdk deploy` as an execution shortcut.
 
 ```sh
 npx cdk synth -c environment=development -c account=425061472162 -c customDomains=false -c existingDevelopmentCertificateArn=arn:aws:acm:us-east-1:425061472162:certificate/9db61a17-da37-4d4a-a4a4-297344ef0d1f --output cdk.out/review-development --quiet
 npx cdk synth -c environment=production -c account=425061472162 -c customDomains=true -c brandLaunchApproved=true --output cdk.out/review-production --quiet
 
-npx cdk diff --app cdk.out/review-development rct-dotcom-development-foundation
-npx cdk diff --app cdk.out/review-production rct-dotcom-production-foundation
-
-npx cdk deploy --app cdk.out/review-development rct-dotcom-development-foundation --method prepare-change-set --change-set-name community-development-launch --parameters ApplicationIntakeEnabled=false --parameters ApplicationConsentPolicyVersion= --parameters ApplicationRetentionDays=0
-npx cdk deploy --app cdk.out/review-production rct-dotcom-production-foundation --method prepare-change-set --change-set-name community-production-launch --parameters ApplicationIntakeEnabled=false --parameters ApplicationConsentPolicyVersion= --parameters ApplicationRetentionDays=0
+# AWS writes: parent only, after reviewing the isolated asset destinations.
+npx cdk publish-assets --app cdk.out/review-development rct-dotcom-development-foundation
+npx cdk publish-assets --app cdk.out/review-production rct-dotcom-production-foundation
 ```
 
-The assemblies use CDK's existing default `hnb659fds` synthesizer interface:
-file assets go to `cdk-hnb659fds-assets-425061472162-us-east-1`; the deploy,
-CloudFormation-execution and file-publishing role names are respectively
-`cdk-hnb659fds-deploy-role-425061472162-us-east-1`,
-`cdk-hnb659fds-cfn-exec-role-425061472162-us-east-1` and
-`cdk-hnb659fds-file-publishing-role-425061472162-us-east-1`.
-The manifest requires `/cdk-bootstrap/hnb659fds/version` at least 6
-(the unused lookup-role descriptor declares 8). There are no context lookups
-and no container/image assets. Each environment's `.assets.json` identifies
-two zipped Lambda code assets and the template file, with content-addressed
-keys. Inspect that manifest for exact hashes after the final reviewed commit.
-Reuse the approved existing bootstrap; do not repeat development bootstrap or
-widen shared roles. If the parent's governed production execution roles differ,
-the parent must explicitly map/review that execution interface before preparing
-a change set rather than silently relying on these default role descriptors.
+Asset destinations are fixed by environment/account/region:
 
-Preparing a change set writes AWS resources/metadata and may publish assets; it
-is exclusively the parent's/operator's responsibility. Inspect each complete
-change set, certificate/DNS ownership, retained resources, IAM boundary, SSM bus
-resolution and closed intake before separately authorizing execution. No CDK
-bootstrap, environment edits, DNS writes, merge or deployment occurs in this PR.
+| Environment | Bucket | Object prefix |
+| --- | --- | --- |
+| development | `rct-dotcom-development-release-assets-425061472162-us-east-1` | `release/` |
+| production | `rct-dotcom-production-release-assets-425061472162-us-east-1` | `release/` |
+
+Development's existing release-asset bucket is reused, not created or adopted
+by the application stack. **Do not recreate its bootstrap.** The application
+web bucket remains a separate resource; the GitHub web publisher never receives
+release-asset-bucket permissions. Assembly tests inspect actual emitted
+manifest/asset/template files for the exact bucket/prefix and absence of shared
+buckets, role-assumption/execution bindings and CDK bootstrap SSM references.
+Each `.assets.json` identifies two zipped Lambda code assets and the template
+file. There are no image assets or context lookups.
+
+### Production-only asset bootstrap
+
+`bootstrap/production-release-assets.template.json` contains exactly a private,
+SSE-S3/AES256-encrypted, versioned bucket with retained deletion/replacement
+policy, bucket-owner-enforced ownership, all four public-access blocks and a
+TLS-only deny bucket policy. It creates no IAM roles, SSM parameters, ECR,
+development resources or broad executor. Outputs:
+
+- `ReleaseAssetBucketName` / `ReleaseAssetBucketArn`
+- `ReleaseAssetObjectPrefix=release/`
+- `ReleaseAssetObjectsArn=<bucket ARN>/release/*`
+
+Only if that production bucket is absent, the parent can prepare a new
+asset-only stack using explicitly approved current owner credentials:
+
+```sh
+aws cloudformation create-change-set \
+  --region us-east-1 \
+  --stack-name rct-dotcom-production-release-assets \
+  --change-set-name community-production-release-assets \
+  --change-set-type CREATE \
+  --template-body file://bootstrap/production-release-assets.template.json
+```
+
+This new asset-only CREATE deliberately supplies no service role and inherits
+no existing stack role. It requires no IAM capability. Inspect it, then execute
+separately only with explicit owner approval. If the bucket already exists,
+verify ownership/configuration instead; do not attempt to adopt/recreate it.
+Do not run `cdk bootstrap`.
+
+The approved CLI uploader needs only release-bucket discovery/listing and
+GetObject/PutObject under `release/`; no asset deletion, IAM changes, STS
+assumption or shared-bucket access is needed for publishing. Parent-approved
+CloudFormation execution credentials need read access to reviewed Lambda ZIPs
+in that environment's `release/` prefix, plus the separately reviewed stack
+service permissions and portfolio-event-bus SSM access.
+
+### Direct application change sets: no shared executor
+
+After asset publishing, derive HTTPS template URLs from each assembly rather
+than hardcoding a stale template hash:
+
+```sh
+DEVELOPMENT_TEMPLATE_URL=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const m=JSON.parse(readFileSync("cdk.out/review-development/manifest.json")); const u=m.artifacts["rct-dotcom-development-foundation"].properties.stackTemplateAssetObjectUrl; console.log(u.replace(/^s3:\/\/([^/]+)\//, "https://$1.s3.us-east-1.amazonaws.com/"));')
+PRODUCTION_TEMPLATE_URL=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const m=JSON.parse(readFileSync("cdk.out/review-production/manifest.json")); const u=m.artifacts["rct-dotcom-production-foundation"].properties.stackTemplateAssetObjectUrl; console.log(u.replace(/^s3:\/\/([^/]+)\//, "https://$1.s3.us-east-1.amazonaws.com/"));')
+
+# Read first: an UPDATE otherwise inherits the existing stack's execution role.
+aws cloudformation describe-stacks --region us-east-1 --stack-name rct-dotcom-development-foundation --query 'Stacks[0].RoleARN'
+
+# Must be an explicitly reviewed narrow development executor, NEVER CDKToolkit.
+: "${APPROVED_DEVELOPMENT_CFN_EXEC_ROLE_ARN:?Parent must supply the approved narrow role}"
+aws cloudformation create-change-set \
+  --region us-east-1 \
+  --stack-name rct-dotcom-development-foundation \
+  --change-set-name community-development-launch \
+  --change-set-type UPDATE \
+  --role-arn "$APPROVED_DEVELOPMENT_CFN_EXEC_ROLE_ARN" \
+  --template-url "$DEVELOPMENT_TEMPLATE_URL" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameters ParameterKey=ApplicationIntakeEnabled,ParameterValue=false ParameterKey=ApplicationConsentPolicyVersion,ParameterValue= ParameterKey=ApplicationRetentionDays,ParameterValue=0
+
+# Initial production CREATE: explicitly owner-approved current credentials,
+# no service role / assumed-role fallback / shared administrator executor.
+aws cloudformation create-change-set \
+  --region us-east-1 \
+  --stack-name rct-dotcom-production-foundation \
+  --change-set-name community-production-launch \
+  --change-set-type CREATE \
+  --template-url "$PRODUCTION_TEMPLATE_URL" \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameters ParameterKey=ApplicationIntakeEnabled,ParameterValue=false ParameterKey=ApplicationConsentPolicyVersion,ParameterValue= ParameterKey=ApplicationRetentionDays,ParameterValue=0
+```
+
+If production already exists, stop and inspect its stored `RoleARN` and state;
+do not reuse the initial CREATE command or omit an explicit approved narrow
+role on an UPDATE. Removing synthesizer role bindings does not clear an
+existing CloudFormation service role. Never inherit the shared administrator
+executor, create a broad replacement executor or widen shared bootstrap roles.
+For explicitly owner-approved initial IAM bootstrap, use direct inspected
+change sets; do not substitute a shared CDK deployment path.
+
+Creating change sets and publishing assets are AWS writes exclusively owned by
+the parent/operator. Inspect complete change sets, certificate/DNS ownership,
+retained resources, IAM boundary, SSM bus resolution and closed intake before
+separately authorizing execution. No bootstrap, environment edits, DNS writes,
+merge or deployment occurs in this PR.
 
 Infrastructure alone disables `exactOptionalPropertyTypes` to accommodate CDK's
 optional-interface declarations; strict TS and app/API/domain exact-optionals

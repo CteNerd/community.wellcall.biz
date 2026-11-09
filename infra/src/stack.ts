@@ -1,4 +1,4 @@
-import { CfnOutput, CfnParameter, Duration, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
+import { CfnOutput, CfnParameter, CliCredentialsStackSynthesizer, Duration, RemovalPolicy, Stack, Tags } from "aws-cdk-lib";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import { S3BucketOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
@@ -26,7 +26,13 @@ import type { Configuration } from "./config.ts";
 
 export class ApplicationStack extends Stack {
   constructor(scope: Construct, config: Configuration, customDomains = false, brandLaunchApproved = false) {
-    super(scope, `${config.prefix}-foundation`, { env: { account: config.account, region: config.region } });
+    super(scope, `${config.prefix}-foundation`, {
+      env: { account: config.account, region: config.region },
+      synthesizer: new CliCredentialsStackSynthesizer({
+        fileAssetsBucketName: `${config.prefix}-release-assets-${config.account}-${config.region}`,
+        bucketPrefix: "release/",
+      }),
+    });
     if (customDomains && config.environment === "production" && !brandLaunchApproved) {
       throw new Error("Production custom domains require explicit brand/cutover approval");
     }

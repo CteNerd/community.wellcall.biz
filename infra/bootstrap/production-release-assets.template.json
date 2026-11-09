@@ -1,0 +1,58 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Community production release assets only; no IAM roles, shared CDK bootstrap or development resources.",
+  "Resources": {
+    "ReleaseAssets": {
+      "Type": "AWS::S3::Bucket",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BucketName": {
+          "Fn::Sub": "rct-dotcom-production-release-assets-${AWS::AccountId}-${AWS::Region}"
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            { "ServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }
+          ]
+        },
+        "VersioningConfiguration": { "Status": "Enabled" },
+        "OwnershipControls": { "Rules": [{ "ObjectOwnership": "BucketOwnerEnforced" }] },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        }
+      }
+    },
+    "ReleaseAssetsPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "Bucket": { "Ref": "ReleaseAssets" },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                { "Fn::GetAtt": ["ReleaseAssets", "Arn"] },
+                { "Fn::Sub": "${ReleaseAssets.Arn}/*" }
+              ],
+              "Condition": { "Bool": { "aws:SecureTransport": "false" } }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ReleaseAssetBucketName": { "Value": { "Ref": "ReleaseAssets" } },
+    "ReleaseAssetBucketArn": { "Value": { "Fn::GetAtt": ["ReleaseAssets", "Arn"] } },
+    "ReleaseAssetObjectPrefix": { "Value": "release/" },
+    "ReleaseAssetObjectsArn": { "Value": { "Fn::Sub": "${ReleaseAssets.Arn}/release/*" } }
+  }
+}

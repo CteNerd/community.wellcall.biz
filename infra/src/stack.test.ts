@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { runInNewContext } from "node:vm";
@@ -288,4 +288,63 @@ test("runtime IAM allows first-approval guard transactions and durable cursor on
   }
   const scoped = JSON.stringify([apiPolicy, publisherPolicy]);
   assert.doesNotMatch(scoped, /dynamodb:(Scan|BatchGetItem|BatchWriteItem|DeleteItem)|OUTBOX#\*/);
+});
+
+test("actual assemblies use isolated release assets and current credentials without shared roles or bootstrap SSM", () => {
+  for (const environment of ["development", "production"] as const) {
+    const application = app();
+    const stack = new ApplicationStack(application, configuration(environment, "425061472162"),
+      environment === "production", environment === "production");
+    const assembly = application.synth();
+    const manifest = JSON.parse(readFileSync(resolve(assembly.directory, "manifest.json"), "utf8"));
+    const artifact = assembly.getStackArtifact(stack.artifactId);
+    const template = JSON.parse(readFileSync(resolve(assembly.directory, artifact.templateFile), "utf8"));
+    const assets = JSON.parse(readFileSync(resolve(assembly.directory, `${stack.artifactId}.assets.json`), "utf8"));
+    const bucket = `rct-dotcom-${environment}-release-assets-425061472162-us-east-1`;
+    assert.equal(Object.keys(assets.files).length, 3);
+    assert.equal(Object.keys(assets.dockerImages ?? {}).length, 0);
+    for (const file of Object.values(assets.files) as Array<{ destinations: Record<string, { bucketName: string; objectKey: string }> }>) {
+      for (const destination of Object.values(file.destinations)) {
+        assert.equal(destination.bucketName, bucket);
+        assert.match(destination.objectKey, /^release\/[a-f0-9]{64}\.(zip|json)$/);
+      }
+    }
+    const properties = manifest.artifacts[stack.artifactId].properties;
+    assert.ok(properties.stackTemplateAssetObjectUrl.startsWith(`s3://${bucket}/release/`));
+    assert.doesNotMatch(JSON.stringify({ manifest, assets, template }),
+      /hnb659fds|CDKToolkit|cdk-bootstrap|assumeRoleArn|cloudFormationExecutionRoleArn|lookupRole|BootstrapVersion/);
+    const lambdaFunctions = Object.values(template.Resources).filter((resource) =>
+      (resource as { Type: string }).Type === "AWS::Lambda::Function") as Array<{ Properties: { Code: { S3Bucket: string; S3Key: string } } }>;
+    assert.equal(lambdaFunctions.length, 2);
+    for (const fn of lambdaFunctions) {
+      assert.equal(fn.Properties.Code.S3Bucket, bucket);
+      assert.match(fn.Properties.Code.S3Key, /^release\/[a-f0-9]{64}\.zip$/);
+    }
+  }
+});
+
+test("production asset bootstrap is retained, versioned, encrypted, private and TLS-only without identity resources", () => {
+  const template = JSON.parse(readFileSync(new URL("../bootstrap/production-release-assets.template.json", import.meta.url), "utf8"));
+  assert.deepEqual(Object.values(template.Resources).map((resource) => (resource as { Type: string }).Type).sort(),
+    ["AWS::S3::Bucket", "AWS::S3::BucketPolicy"]);
+  const bucket = template.Resources.ReleaseAssets;
+  assert.equal(bucket.DeletionPolicy, "Retain");
+  assert.equal(bucket.UpdateReplacePolicy, "Retain");
+  assert.equal(bucket.Properties.BucketName["Fn::Sub"], "rct-dotcom-production-release-assets-${AWS::AccountId}-${AWS::Region}");
+  assert.deepEqual(bucket.Properties.VersioningConfiguration, { Status: "Enabled" });
+  assert.equal(bucket.Properties.BucketEncryption.ServerSideEncryptionConfiguration[0].ServerSideEncryptionByDefault.SSEAlgorithm, "AES256");
+  assert.deepEqual(bucket.Properties.PublicAccessBlockConfiguration, {
+    BlockPublicAcls: true, BlockPublicPolicy: true, IgnorePublicAcls: true, RestrictPublicBuckets: true,
+  });
+  assert.deepEqual(bucket.Properties.OwnershipControls, { Rules: [{ ObjectOwnership: "BucketOwnerEnforced" }] });
+  assert.equal(template.Resources.ReleaseAssetsPolicy.DeletionPolicy, "Retain");
+  assert.equal(template.Resources.ReleaseAssetsPolicy.UpdateReplacePolicy, "Retain");
+  const statements = template.Resources.ReleaseAssetsPolicy.Properties.PolicyDocument.Statement;
+  assert.equal(statements.length, 1);
+  assert.deepEqual(statements[0], {
+    Effect: "Deny", Principal: "*", Action: "s3:*",
+    Resource: [{ "Fn::GetAtt": ["ReleaseAssets", "Arn"] }, { "Fn::Sub": "${ReleaseAssets.Arn}/*" }],
+    Condition: { Bool: { "aws:SecureTransport": "false" } },
+  });
+  assert.doesNotMatch(JSON.stringify(template), /rct-dotcom-development|hnb659fds|CDKToolkit|AWS::IAM::|AWS::SSM::/);
 });
