@@ -93,6 +93,23 @@ explicit approval of consent, screening, retention, reviewer membership and
 replay/rollback procedures. Application intake remains closed until those
 approvals are recorded and the relevant gates are deliberately configured.
 
+### Existing-table GSI migration
+
+DynamoDB permits only one GSI creation or deletion per CloudFormation UPDATE.
+An existing table with zero indexes must not add `CommunityApplicationsIndex`
+and `OutboxPendingIndex` in one update. Stage a reviewed table-only intermediate
+from the live baseline plus the exact first index and its key attributes,
+preserving all other table properties and resources. Inspect the change set:
+only `CoreC65142A7` should change, with `Replacement=False`; never replace or
+recreate the table to bypass this limit.
+
+Wait for the new index's actual DynamoDB `IndexStatus` to become `ACTIVE` before
+applying the original reviewed full target to add the remaining index. Check
+each new index similarly: CloudFormation completion or a `table-exists` waiter
+alone does not establish index readiness. This is one-time operational staging,
+not a new framework/configuration flag. A new empty-stack CREATE can create both
+indexes together.
+
 ## DNS, delivery and rollback
 
 Synthetic-account default synthesis creates no DNS records/certificates. `customDomains=true`
