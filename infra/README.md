@@ -313,17 +313,18 @@ than hardcoding a stale template hash:
 DEVELOPMENT_TEMPLATE_URL=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const m=JSON.parse(readFileSync("cdk.out/review-development/manifest.json")); const u=m.artifacts["rct-dotcom-development-foundation"].properties.stackTemplateAssetObjectUrl; console.log(u.replace(/^s3:\/\/([^/]+)\//, "https://$1.s3.us-east-1.amazonaws.com/"));')
 PRODUCTION_TEMPLATE_URL=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; const m=JSON.parse(readFileSync("cdk.out/review-production/manifest.json")); const u=m.artifacts["rct-dotcom-production-foundation"].properties.stackTemplateAssetObjectUrl; console.log(u.replace(/^s3:\/\/([^/]+)\//, "https://$1.s3.us-east-1.amazonaws.com/"));')
 
-# Read first: an UPDATE otherwise inherits the existing stack's execution role.
-aws cloudformation describe-stacks --region us-east-1 --stack-name rct-dotcom-development-foundation --query 'Stacks[0].RoleARN'
-
-# Must be an explicitly reviewed narrow development executor, NEVER CDKToolkit.
-: "${APPROVED_DEVELOPMENT_CFN_EXEC_ROLE_ARN:?Parent must supply the approved narrow role}"
+# Parent verified the current development RoleARN is null. Recheck before use:
+# this example uses approved current owner credentials, not a service role.
+DEVELOPMENT_STORED_ROLE_ARN=$(aws cloudformation describe-stacks --region us-east-1 --stack-name rct-dotcom-development-foundation --query 'Stacks[0].RoleARN' --output text)
+case "$DEVELOPMENT_STORED_ROLE_ARN" in
+  None|null|"") ;;
+  *) echo "Stored service role found; stop and inspect before choosing an executor." >&2; exit 1 ;;
+esac
 aws cloudformation create-change-set \
   --region us-east-1 \
   --stack-name rct-dotcom-development-foundation \
   --change-set-name community-development-launch \
   --change-set-type UPDATE \
-  --role-arn "$APPROVED_DEVELOPMENT_CFN_EXEC_ROLE_ARN" \
   --template-url "$DEVELOPMENT_TEMPLATE_URL" \
   --capabilities CAPABILITY_NAMED_IAM \
   --parameters ParameterKey=ApplicationIntakeEnabled,ParameterValue=false ParameterKey=ApplicationConsentPolicyVersion,ParameterValue= ParameterKey=ApplicationRetentionDays,ParameterValue=0
@@ -340,13 +341,27 @@ aws cloudformation create-change-set \
   --parameters ParameterKey=ApplicationIntakeEnabled,ParameterValue=false ParameterKey=ApplicationConsentPolicyVersion,ParameterValue= ParameterKey=ApplicationRetentionDays,ParameterValue=0
 ```
 
-If production already exists, stop and inspect its stored `RoleARN` and state;
-do not reuse the initial CREATE command or omit an explicit approved narrow
-role on an UPDATE. Removing synthesizer role bindings does not clear an
-existing CloudFormation service role. Never inherit the shared administrator
-executor, create a broad replacement executor or widen shared bootstrap roles.
-For explicitly owner-approved initial IAM bootstrap, use direct inspected
-change sets; do not substitute a shared CDK deployment path.
+The parent verified the current development foundation has `RoleARN=null`;
+there is no existing shared service-role binding to replace. Its explicitly
+owner-approved initial application IAM provisioning/migration can therefore
+use the guarded UPDATE example without `--role-arn`. Do not invent a missing
+ARN or create an executor solely for this null-role case.
+
+If inspection instead finds a stored shared/broad service role, do not inherit
+it or run the null-role example. Only after separate review, add
+`--role-arn "$APPROVED_DEVELOPMENT_CFN_EXEC_ROLE_ARN"` to the development UPDATE,
+with that variable set to an actual approved narrow replacement. A stored
+narrow role also requires explicit inspection/approval before reuse; there is
+no automatic role fallback.
+
+If production already exists, stop and inspect its stored `RoleARN` and state
+and prepare UPDATE rather than reusing initial CREATE. Apply the same
+null-versus-stored-role decision: owner-approved current credentials for a null
+role; never silently inherit a shared/broad role. Removing synthesizer bindings
+does not clear a service role when one actually exists. Never create a broad
+replacement executor or widen shared bootstrap roles. For explicitly
+owner-approved initial IAM bootstrap, use direct inspected change sets; do not
+substitute a shared CDK deployment path.
 
 Creating change sets and publishing assets are AWS writes exclusively owned by
 the parent/operator. Inspect complete change sets, certificate/DNS ownership,
