@@ -2,8 +2,25 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import { App } from "./App.tsx";
 import { brand } from "./branding.ts";
+import { readPresentation } from "./presentation.ts";
 
 afterEach(cleanup);
+
+test("public production requires explicit approval, carries real branding and keeps all intake closed", () => {
+  expect(readPresentation({ PROD: true }).production).toBe(false);
+  expect(() => readPresentation({ VITE_COMMUNITY_PRESENTATION: "production" })).toThrow(/approval/);
+  expect(() => readPresentation({ VITE_COMMUNITY_PRESENTATION: "other" })).toThrow();
+  render(<App presentation={readPresentation({
+    VITE_COMMUNITY_PRESENTATION: "production", VITE_COMMUNITY_BRAND_LAUNCH_APPROVED: "true",
+  })} />);
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("CUT BLOCK");
+  expect(screen.getByText(brand.meaning)).toBeDefined();
+  expect(document.body.textContent).not.toMatch(/preview|provisional|noindex/i);
+  expect(screen.getByText(/Enrollment is not open/)).toBeDefined();
+  expect(screen.getByText(/no active athletics, fitness, facility, or training service/i)).toBeDefined();
+  expect(document.querySelector("form")).toBeNull();
+  expect(document.body.textContent).toMatch(/no claim here about legal structure/);
+});
 
 test("the approved meaning and provisional brand are prominent", () => {
   render(<App />);

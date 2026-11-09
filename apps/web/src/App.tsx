@@ -1,4 +1,5 @@
 import { brand } from "./branding.ts";
+import { readPresentation } from "./presentation.ts";
 import "./style.css";
 
 const pathways = [
@@ -72,7 +73,7 @@ const questions = [
   {
     question: "Will CUT BLOCK work with young people?",
     answer:
-      "Not through this preview or the planned adult pilot. Any future youth program would require reviewed safeguarding, guardian-consent, supervision, and operating procedures before it could be considered.",
+      "Not through this website or the planned adult pilot. Any future youth program would require reviewed safeguarding, guardian-consent, supervision, and operating procedures before it could be considered.",
   },
   {
     question: "Is there a CUT BLOCK gym or training facility?",
@@ -95,7 +96,11 @@ function SectionLabel({ children }: { children: string }) {
   return <p className="section-label">{children}</p>;
 }
 
-export function App() {
+export function App({ presentation = readPresentation(import.meta.env) } = {}) {
+  const production = presentation.production;
+  const displayedQuestions = questions.map((item) => item.question === "Is CUT BLOCK a nonprofit or a registered organization?" && production
+    ? { ...item, answer: "CUT BLOCK makes no claim here about legal structure, nonprofit status, tax deductibility, or registration." }
+    : item);
   return (
     <>
       <a className="skip-link" href="#main">
@@ -104,7 +109,7 @@ export function App() {
 
       <div className="preview-banner">
         <span className="status-dot" aria-hidden="true" />
-        Development preview <span aria-hidden="true">/</span> Enrollment is closed
+        {production ? "CUT BLOCK" : "Development preview"} <span aria-hidden="true">/</span> Enrollment is closed
       </div>
 
       <header className="site-header">
@@ -138,7 +143,8 @@ export function App() {
               <span className="eyebrow-line" aria-hidden="true" />
               A development-minded community
             </p>
-            <h1 id="hero-title">{brand.meaning}.</h1>
+            <h1 id="hero-title">{production ? brand.shortName : `${brand.meaning}.`}</h1>
+            {production && <p className="story-lead">{brand.meaning}</p>}
             <p className="hero-deck">
               {brand.tagline} Grow with purpose—through hands-on learning,
               thoughtful mentorship, and the discipline to keep getting better.
@@ -152,8 +158,8 @@ export function App() {
               </a>
             </div>
             <p className="hero-note">
-              A provisional brand and a work in progress. No applications or
-              enrollment are open.
+              {production ? "Building toward an adult pilot. No applications or enrollment are open."
+                : "A provisional brand and a work in progress. No applications or enrollment are open."}
             </p>
           </div>
 
@@ -335,7 +341,7 @@ export function App() {
                 <li><span aria-hidden="true">—</span><span>No youth participation before safeguarding and guardian processes are reviewed.</span></li>
                 <li><span aria-hidden="true">—</span><span>No active athletics, fitness, facility, or training service.</span></li>
               </ul>
-              <p>This preview is information only—not an invitation to apply.</p>
+              <p>This {production ? "website" : "preview"} is information only—not an invitation to apply.</p>
             </div>
           </div>
         </section>
@@ -344,10 +350,10 @@ export function App() {
           <div className="faq-heading">
             <SectionLabel>GOOD QUESTIONS</SectionLabel>
             <h2 id="faq-title">Before you ask.</h2>
-            <p>Plain answers about what this preview is—and what it is not.</p>
+            <p>Plain answers about what this {production ? "website" : "preview"} is—and what it is not.</p>
           </div>
           <div className="faq-list">
-            {questions.map(({ question, answer }, index) => (
+            {displayedQuestions.map(({ question, answer }, index) => (
               <details className="faq-item" key={question}>
                 <summary>
                   <span className="faq-index">0{index + 1}</span>
@@ -374,7 +380,7 @@ export function App() {
           <a className="footer-top" href="#top">Back to top ↑</a>
         </div>
         <div className="footer-bottom">
-          <span>Development preview · {brand.status} working brand</span>
+          <span>{production ? brand.productName : `Development preview · ${brand.status} working brand`}</span>
           <span>No enrollment, applications, or services are open.</span>
         </div>
       </footer>
