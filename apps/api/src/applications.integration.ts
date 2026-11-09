@@ -31,7 +31,15 @@ function request(
       http: { method, path, protocol: "HTTP/1.1", sourceIp: "127.0.0.1", userAgent: "local-integration" },
       requestId: randomUUID(), routeKey: `${method} ${path}`, stage: "local",
       time: "09/Nov/2026:12:00:00 +0000", timeEpoch: 1794225600000,
-      authorizer: { jwt: { claims: { sub: subject }, scopes: [] } },
+      authorizer: {
+        jwt: {
+          claims: {
+            sub: subject,
+            ...(subject === "synthetic-reviewer" ? { "cognito:groups": ["CommunityAdministrators"] } : {}),
+          },
+          scopes: [],
+        },
+      },
     },
   };
 }
@@ -124,6 +132,38 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
       assert.equal((await api(request(`/applications/${expiredId}/withdraw`, "POST", {
         expectedVersion: 0,
       }))).statusCode, 404);
+    });
+
+    await t.test("mentor approval checks prerequisites and writes exactly one sanitized outbox event", async () => {
+      const submitted = await api(request("/applications", "POST", { ...body, kind: "mentor" }));
+      const mentorId = applicationId(submitted.body);
+      const reviewPath = `/admin/applications/${mentorId}`;
+      const review = (value: Record<string, unknown>) =>
+        api(request(reviewPath, "PATCH", value, "synthetic-reviewer"));
+      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 0 })).statusCode, 409);
+      assert.equal((await review({ action: "verify_adult_eligibility", expectedVersion: 0 })).statusCode, 200);
+      assert.equal((await review({
+        action: "record_mentor_screening", result: "passed", expectedVersion: 1,
+      })).statusCode, 200);
+      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 2 })).statusCode, 200);
+      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 2 })).statusCode, 409);
+      assert.equal((await api(request(`/applications/${mentorId}/withdraw`, "POST", {
+        expectedVersion: 3,
+      }))).statusCode, 409);
+      const record = await document.send(new GetCommand({
+        TableName: tableName, Key: { PK: `APPLICATION#${mentorId}`, SK: "METADATA" }, ConsistentRead: true,
+      }));
+      assert.equal(record.Item?.status, "approved");
+      assert.equal(record.Item?.version, 3);
+      assert.equal(record.Item?.GSI1PK, undefined);
+      const outbox = await document.send(new QueryCommand({
+        TableName: tableName, IndexName: "OutboxPendingIndex",
+        KeyConditionExpression: "GSI2PK = :pending",
+        ExpressionAttributeValues: { ":pending": "OUTBOX#PENDING" },
+      }));
+      assert.equal(outbox.Items?.length, 1);
+      assert.equal(outbox.Items?.[0]?.event.detail.data.mentorCount, 1);
+      assert.doesNotMatch(JSON.stringify(outbox.Items), /example\.invalid|contactName|contactEmail|applicantSub/);
     });
   } finally {
     try {
