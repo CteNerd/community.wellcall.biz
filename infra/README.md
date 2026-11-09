@@ -97,18 +97,24 @@ approvals are recorded and the relevant gates are deliberately configured.
 
 DynamoDB permits only one GSI creation or deletion per CloudFormation UPDATE.
 An existing table with zero indexes must not add `CommunityApplicationsIndex`
-and `OutboxPendingIndex` in one update. Stage a reviewed table-only intermediate
-from the live baseline plus the exact first index and its key attributes,
-preserving all other table properties and resources. Inspect the change set:
-only `CoreC65142A7` should change, with `Replacement=False`; never replace or
-recreate the table to bypass this limit.
+and `OutboxPendingIndex` in one update. For **each** missing GSI, stage a separate
+reviewed table-only intermediate from the latest live template plus that exact
+index and its key attributes, preserving already-created indexes and all other
+table properties and resources. Inspect each change set: only `CoreC65142A7`
+should change, with `Replacement=False`; never replace or recreate the table to
+bypass this limit.
 
-Wait for the new index's actual DynamoDB `IndexStatus` to become `ACTIVE` before
-applying the original reviewed full target to add the remaining index. Check
-each new index similarly: CloudFormation completion or a `table-exists` waiter
-alone does not establish index readiness. This is one-time operational staging,
-not a new framework/configuration flag. A new empty-stack CREATE can create both
-indexes together.
+After each table-only update, wait for that index's actual DynamoDB
+`IndexStatus` to become `ACTIVE` before staging the next index. CloudFormation
+completion or a `table-exists` waiter alone does not establish index readiness.
+Only after **all required indexes are ACTIVE** apply the reviewed full runtime
+target, retaining those indexes. Do not combine the final GSI addition with
+dependent runtime deployment: outbox/reconciliation must not start before
+`OutboxPendingIndex` is active. In this migration, the remaining table changes
+were TTL and stream configuration, still without table replacement.
+
+This is one-time operational staging, not a new framework/configuration flag.
+A new empty-stack CREATE can create both indexes together.
 
 ## DNS, delivery and rollback
 
