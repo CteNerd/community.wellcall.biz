@@ -75,7 +75,7 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
       })),
     }));
     created = true;
-    await waitUntilTableExists({ client, maxWaitTime: 20 }, { TableName: tableName });
+    await waitUntilTableExists({ client, maxWaitTime: 20, minDelay: 1, maxDelay: 1 }, { TableName: tableName });
     const api = createApiHandler({
       applicationStore: new DynamoApplicationStore(document, tableName),
       applicationIntake: { enabled: true, consentPolicyVersion: "synthetic-local-v1", retentionDays: 30 },
