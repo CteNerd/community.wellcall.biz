@@ -1,15 +1,57 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
 import { App } from "./App.tsx";
+import { brand } from "./branding.ts";
 
 afterEach(cleanup);
 
-test("programs are explicitly planned and youth enrollment is not offered", () => {
+test("the approved meaning and provisional brand are prominent", () => {
   render(<App />);
-  expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeDefined();
-  expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("Build your skills");
-  expect(screen.getByText("From the codebase to the field.")).toBeDefined();
+
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toContain(brand.meaning);
+  expect(screen.getAllByRole("link", { name: /CUT BLOCK home/i })).toHaveLength(2);
+  expect(screen.getByText(/provisional brand/i)).toBeDefined();
+  expect(document.body.textContent).toContain(brand.tagline);
+});
+
+test("navigation links to the complete story, program, readiness, and FAQ sections", () => {
+  render(<App />);
+
+  const nav = screen.getByRole("navigation", { name: "Main navigation" });
+  const navigationTargets = within(nav)
+    .getAllByRole("link")
+    .map((link) => link.getAttribute("href")?.slice(1));
+
+  expect(navigationTargets).toEqual(["story", "pathways", "approach", "readiness", "faq"]);
+  for (const id of navigationTargets) {
+    expect(document.getElementById(id ?? "")).not.toBeNull();
+  }
+  expect(screen.getByRole("heading", { name: /Technology \+ AI/ })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Mentorship" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: /Athletics \+ fitness/ })).toBeDefined();
+  expect(screen.getAllByText(/^(planned adult pathway|future concept)$/i)).toHaveLength(3);
+});
+
+test("the guided-practice model and future readiness boundaries are explained", () => {
+  render(<App />);
+
+  expect(screen.getByRole("heading", { name: "Start with a challenge" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Make a game plan" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Practice, then get feedback" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Reflect and build forward" })).toBeDefined();
   expect(screen.getByText(/Enrollment is not open/)).toBeDefined();
-  expect(screen.getByText(/guardian-consent requirements/)).toBeDefined();
+  expect(screen.getByText(/Youth participation before safeguarding and guardian processes are reviewed/i)).toBeDefined();
+  expect(screen.getByText(/no active athletics, fitness, facility, or training service/i)).toBeDefined();
+});
+
+test("FAQ content is meaningful and no application, contact, or enrollment flow is exposed", () => {
+  render(<App />);
+
+  expect(screen.getByRole("heading", { name: "Before you ask." })).toBeDefined();
+  expect(screen.getAllByText(/Can I apply, enroll, or book a mentor now\?/)).toHaveLength(1);
+  expect(screen.getByText(/Is CUT BLOCK a nonprofit or a registered organization\?/)).toBeDefined();
   expect(document.querySelector("form")).toBeNull();
+  expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
+  expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+  expect(document.querySelectorAll('a[href^="http"]').length).toBe(0);
 });

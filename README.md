@@ -51,7 +51,32 @@ Reuse the registered Route 53 zone. The roadmap includes technology, AI,
 mentorship, athletic training, fitness and future facilities; only the approved
 adult pilot is initially enabled. Brand clearance, certificates, cutover and
 protected production approval remain gates; no automatic production scaffolding
-deployment is permitted.
+deployment is permitted. "Planned adult pilot" does not mean applications or
+enrollment are open.
+
+The source now includes authenticated adult-application submission, group-gated
+review actions, owner-only application status/withdrawal, version-checked
+updates, retention expiry and an atomic,
+aggregate-only mentor-approval outbox; application creation also uses a
+24-hour idempotency receipt. The API has no public signup or youth
+routes, and no application UI is published. Intake defaults to disabled with a
+blank consent version and zero retention; the administrator group has no
+members. This code has not been deployed to the already-existing development
+stack. Consent, eligibility verification, screening, retention and escalation
+policies, an authorized reviewer and a reviewed stack migration are still
+required before any live application pilot.
+
+Authenticated applicants can use `GET /applications/{applicationId}` to see
+only their own application ID, kind, status, version and creation/withdrawal
+timestamps. Other applicants and expired records return the same 404. They can
+withdraw an application still under review with
+`POST /applications/{applicationId}/withdraw` and `{ "expectedVersion": 0 }`
+(using the current version from the status response). A conditional write
+checks the applicant, pending status, version and expiry together and removes
+the application from the reviewer queue. Stale versions return 409; this is not
+mentor offboarding or revocation of an approved application. Withdrawal emits
+no mentor-approval event. Existing applicants can read or withdraw even while
+new intake is closed. These endpoints remain source-only, not deployed.
 
 ## Legacy development commands (historical)
 

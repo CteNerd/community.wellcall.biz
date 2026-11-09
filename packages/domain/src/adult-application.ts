@@ -12,8 +12,11 @@ export type AdultApplication = {
   consentAcceptedAt?: string;
   consentPolicyVersion?: string;
   mentorScreening: "not_required" | "pending" | "passed" | "failed";
+  screeningBy?: string;
+  screeningAt?: string;
   reviewedBy?: string;
   reviewedAt?: string;
+  withdrawnAt?: string;
 };
 
 export type MentorApprovalEvent = {
@@ -30,12 +33,26 @@ export type MentorApprovalEvent = {
 };
 
 export type ApplicationDecision = "approve" | "reject";
+export type ApplicationReviewAction =
+  | { type: "verify_adult_eligibility" }
+  | { type: "record_mentor_screening"; result: "passed" | "failed" }
+  | { type: "decide"; decision: ApplicationDecision };
 
 export class ApplicationReviewError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "ApplicationReviewError";
   }
+}
+
+export function withdrawAdultApplication(application: AdultApplication, now: Date): AdultApplication {
+  if (application.status !== "under_review") {
+    throw new ApplicationReviewError("Only applications under review can be withdrawn");
+  }
+  if (!Number.isFinite(now.getTime())) {
+    throw new ApplicationReviewError("A valid withdrawal time is required");
+  }
+  return { ...application, status: "withdrawn", withdrawnAt: now.toISOString() };
 }
 
 export function decideAdultApplication(
@@ -99,6 +116,48 @@ export function decideAdultApplication(
         data: { reportingMonth: occurredAt.slice(0, 7), mentorCount: 1 },
       },
     },
+  };
+}
+
+export function reviewAdultApplication(
+  application: AdultApplication,
+  action: ApplicationReviewAction,
+  reviewerId: string,
+  consentPolicyVersion: string,
+  now: Date,
+): { application: AdultApplication; reportingEvent: MentorApprovalEvent | undefined } {
+  if (application.status !== "under_review") {
+    throw new ApplicationReviewError("Only applications under review can be changed");
+  }
+  if (!reviewerId.trim() || !Number.isFinite(now.getTime())) {
+    throw new ApplicationReviewError("A valid reviewer and decision time are required");
+  }
+  if (action.type === "decide") {
+    return decideAdultApplication(application, action.decision, reviewerId, consentPolicyVersion, now);
+  }
+  if (action.type === "verify_adult_eligibility") {
+    if (application.adultEligibility.status !== "unverified") {
+      throw new ApplicationReviewError("Adult eligibility can only be verified once");
+    }
+    return {
+      application: {
+        ...application,
+        adultEligibility: { status: "verified", verifiedBy: reviewerId, verifiedAt: now.toISOString() },
+      },
+      reportingEvent: undefined,
+    };
+  }
+  if (application.kind !== "mentor" || application.mentorScreening !== "pending") {
+    throw new ApplicationReviewError("Only pending mentor screening can be recorded");
+  }
+  return {
+    application: {
+      ...application,
+      mentorScreening: action.result,
+      screeningBy: reviewerId,
+      screeningAt: now.toISOString(),
+    },
+    reportingEvent: undefined,
   };
 }
 

@@ -21,21 +21,53 @@ Region is fixed to `us-east-1`.
 
 - Independent `rct-dotcom-development` / `rct-dotcom-production` resources; the
   stable technical name does not change with the display brand.
-- On-demand core table; production PITR, deletion protection and retention.
+- On-demand core table with an application-review index, a pending-outbox index,
+  TTL and a new-image stream; production PITR, deletion protection and retention.
 - Private S3, CloudFront OAC/HTTPS/security headers; no uploaded assets or broad
   SPA fallback. Legacy applications are not replaced.
 - Invitation-only Cognito with required authenticator MFA and a public client.
-  No signup/login UI, hosted login domain or initial users are provisioned.
-- Node 24 API Lambda, scoped logs-only role and 7/30-day dev/prod log retention.
-- Public `GET /health`, JWT-protected `GET /me`, exact web-origin CORS.
-  No participant, program, consent or business database access yet.
+  The `CommunityAdministrators` group is empty by default. No signup/login UI,
+  hosted login domain or initial users are provisioned.
+- Node 24 API and outbox-publisher Lambdas with scoped roles and 7/30-day
+  dev/prod log retention.
+- Public `GET /health`; JWT-protected `GET /me` and `POST /applications`;
+  JWT-protected `GET /admin/applications` and
+  `PATCH /admin/applications/{applicationId}`. Reviewer endpoints additionally
+  require the exact `CommunityAdministrators` claim. No youth or participant
+  assignment endpoints are exposed.
+- Application intake has explicit CloudFormation gates: disabled by default,
+  blank consent-policy version and zero retention. The API stores contact data
+  only when all gates are deliberately approved; a client cannot supply the
+  policy version, verified-adult result, screening result or application state.
+- Submission records are TTL-bounded. Review updates require an expected
+  version and an unexpired record; adult-eligibility and mentor-screening
+  actions record the authenticated reviewer. Mentor approval atomically
+  updates the application and writes a PII-free reporting outbox event.
+  Submissions require a UUID idempotency key and atomically pair the application
+  with a 24-hour receipt; retries return the original application only when
+  applicant and submitted fields match. The browser CORS allow-list includes
+  that request header.
+- DynamoDB Streams retry outbox delivery with partial-batch handling and an
+  SQS failure destination. A five-minute reconciliation schedule retries
+  pending outbox entries. The publisher accepts only the strict aggregate
+  `rct.dotcom` mentor-approval event and only sends that source/detail type to
+  the discovered portfolio bus.
 - No VPC, NAT, RDS, bus or changes to existing application ownership.
 
 Mentor-policy tests require approved active memberships and matching active
 mentor/participant/program assignments. These are not CRUD endpoints. Future
 APIs must load trusted records server-side, not accept assignment/role claims
 from clients. Youth/guardian consent, safeguarding and program permissions must
-be reviewed before enabling minors. No enrollment opens in this increment.
+be reviewed before enabling minors. No application form is present in the
+preview and no enrollment opens in this increment.
+
+The development and production templates now include API routes, table
+indexes/TTL/stream, and the outbox publisher, but these changes are source-only.
+The development foundation already exists without these resources. Do not
+deploy it or alter its live table before a reviewed `cdk diff`/change set and
+explicit approval of consent, screening, retention, reviewer membership and
+replay/rollback procedures. Application intake remains closed until those
+approvals are recorded and the relevant gates are deliberately configured.
 
 ## DNS, delivery and rollback
 
@@ -46,10 +78,14 @@ Production also configures `api.cutblock.org` and requires
 `brandLaunchApproved=true`; the flag is not legal or deployment approval.
 
 Generated CloudFront URLs use the default CloudFront certificate/security
-policy; custom certificates use TLS 1.2. The development publisher supports only
-generated CloudFront/API URLs with no DNS changes. Custom-domain publishing
-needs a separately reviewed validator extension. Verify delegation, certificate
-issuance and change sets; never replace unrelated Route 53 records.
+policy; custom certificates use TLS 1.2. The source publisher validator accepts
+the generated CloudFront URL or exactly `https://dev.cutblock.org`; for the
+custom URL it verifies the distribution alias and ACM/TLS configuration. This
+change is source-only until merged, so the current main workflow still uses the
+generated URL. The live dev alias was added separately with AWS CLI; current
+stack outputs remain generated URLs. Before moving the alias into CDK
+management, review the complete change set. Publishing itself never changes
+DNS. See the [development handoff](../../consulting.wellcall.biz/docs/development-handoff-2026-11-06.md).
 
 ## Manual development web releases
 
@@ -92,7 +128,8 @@ requires all four public-access blocks and an explicitly non-public policy;
 ownership and an OAC ID alone are not sufficient. Hashed assets upload
 before the entry point, without deleting old files. It waits for invalidation
 and compares the live HTML and every emitted asset byte-for-byte to the build before reporting a URL.
-Enrollment remains closed; no Community sign-in/application UI is introduced.
+Application intake/enrollment remains closed; no Community sign-in or
+application UI is introduced.
 The publisher is implemented independently in each repository to preserve
 separate ownership and release boundaries.
 

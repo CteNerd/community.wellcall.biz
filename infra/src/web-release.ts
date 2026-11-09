@@ -1,6 +1,8 @@
 const repository = "CteNerd/community.wellcall.biz";
 const prefix = "rct-dotcom-development";
 const rolePath = "/rct/dotcom/development/";
+const customWebHost = "dev.cutblock.org";
+const customWebUrl = `https://${customWebHost}`;
 
 export type PreviewRelease = {
   bucket: string;
@@ -42,18 +44,34 @@ export function parsePreviewStack(value: unknown, env: NodeJS.ProcessEnv): Previ
   if (outputs.WebPublishRoleArn !== roleArn) throw new Error("Publisher role does not match the deployed stack");
   const bucket = requiredOutput(outputs, "WebBucket", /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/);
   const distributionId = requiredOutput(outputs, "DistributionId", /^[A-Z0-9]{8,32}$/);
-  const webUrl = requiredOutput(outputs, "WebUrl", /^https:\/\/[a-z0-9]+\.cloudfront\.net$/);
+  const webUrl = requiredOutput(outputs, "WebUrl", /^https:\/\/(?:[a-z0-9]+\.cloudfront\.net|dev\.cutblock\.org)$/);
   const apiUrl = requiredOutput(outputs, "ApiUrl", /^https:\/\/[a-z0-9]+\.execute-api\.us-east-1\.amazonaws\.com$/);
   return { bucket, distributionId, webUrl, apiUrl };
 }
 
 export function verifyPreviewDistribution(value: unknown, release: Pick<PreviewRelease, "bucket" | "distributionId" | "webUrl">): void {
   const distribution = isRecord(value) ? value.Distribution : undefined;
+  const domainName = isRecord(distribution) ? distribution.DomainName : undefined;
+  const config = isRecord(distribution) ? distribution.DistributionConfig : undefined;
+  const isCustomDomain = release.webUrl === customWebUrl;
   if (!isRecord(distribution) || distribution.Id !== release.distributionId
-    || `https://${String(distribution.DomainName)}` !== release.webUrl || distribution.Status !== "Deployed") {
+    || typeof domainName !== "string" || !/^[a-z0-9]+\.cloudfront\.net$/.test(domainName)
+    || (!isCustomDomain && `https://${domainName}` !== release.webUrl) || distribution.Status !== "Deployed") {
     throw new Error("Distribution does not match the ready preview destination");
   }
-  const config = distribution.DistributionConfig;
+  if (isCustomDomain) {
+    const aliases = isRecord(config) && isRecord(config.Aliases) ? config.Aliases : undefined;
+    const certificate = isRecord(config) ? config.ViewerCertificate : undefined;
+    if (!isRecord(aliases) || aliases.Quantity !== 1 || !Array.isArray(aliases.Items)
+      || aliases.Items.length !== 1 || aliases.Items[0] !== customWebHost
+      || !isRecord(certificate)
+      || typeof certificate.ACMCertificateArn !== "string"
+      || !/^arn:aws:acm:us-east-1:\d{12}:certificate\/[0-9a-f-]{36}$/.test(certificate.ACMCertificateArn)
+      || certificate.SSLSupportMethod !== "sni-only"
+      || certificate.MinimumProtocolVersion !== "TLSv1.2_2021") {
+      throw new Error("Custom preview hostname must match its CloudFront alias and ACM TLS configuration");
+    }
+  }
   const origins = isRecord(config) && isRecord(config.Origins) ? config.Origins.Items : undefined;
   if (!isRecord(config) || config.Enabled !== true || !Array.isArray(origins) || origins.length !== 1
     || !isRecord(origins[0])

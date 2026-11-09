@@ -8,7 +8,14 @@ import { ApplicationStack } from "./stack.ts";
 test("development foundation has private hosting, no DNS writes, and protected identity routing", () => {
   const template = Template.fromStack(new ApplicationStack(new App(), configuration("development", "123456789012")));
   template.hasResourceProperties("AWS::DynamoDB::Table", {
-    TableName: "rct-dotcom-development-core", BillingMode: "PAY_PER_REQUEST",
+    TableName: "rct-dotcom-development-core",
+    BillingMode: "PAY_PER_REQUEST",
+    TimeToLiveSpecification: { AttributeName: "expiresAt", Enabled: true },
+    StreamSpecification: { StreamViewType: "NEW_IMAGE" },
+    GlobalSecondaryIndexes: Match.arrayWith([
+      Match.objectLike({ IndexName: "CommunityApplicationsIndex" }),
+      Match.objectLike({ IndexName: "OutboxPendingIndex" }),
+    ]),
   });
   template.hasResourceProperties("AWS::S3::Bucket", {
     PublicAccessBlockConfiguration: {
@@ -23,6 +30,17 @@ test("development foundation has private hosting, no DNS writes, and protected i
   template.hasResourceProperties("AWS::ApiGatewayV2::Route", {
     RouteKey: "GET /me", AuthorizationType: "JWT", AuthorizerId: Match.anyValue(),
   });
+  for (const key of [
+    "POST /applications",
+    "GET /applications/{applicationId}",
+    "POST /applications/{applicationId}/withdraw",
+    "GET /admin/applications",
+    "PATCH /admin/applications/{applicationId}",
+  ]) {
+    template.hasResourceProperties("AWS::ApiGatewayV2::Route", {
+      RouteKey: key, AuthorizationType: "JWT", AuthorizerId: Match.anyValue(),
+    });
+  }
   const [poolId] = Object.keys(template.findResources("AWS::Cognito::UserPool"));
   const [clientId] = Object.keys(template.findResources("AWS::Cognito::UserPoolClient"));
   assert.ok(poolId);
@@ -34,12 +52,51 @@ test("development foundation has private hosting, no DNS writes, and protected i
       Audience: [{ Ref: clientId }],
     },
   });
-  template.resourceCountIs("AWS::ApiGatewayV2::Route", 2);
+  template.resourceCountIs("AWS::ApiGatewayV2::Route", 7);
+  template.hasResourceProperties("AWS::ApiGatewayV2::Api", {
+    CorsConfiguration: Match.objectLike({
+      AllowMethods: Match.arrayWith(["GET", "POST", "PATCH"]),
+      AllowHeaders: Match.arrayWith(["idempotency-key"]),
+    }),
+  });
+  template.resourceCountIs("AWS::Lambda::EventSourceMapping", 1);
+  template.resourceCountIs("AWS::SQS::Queue", 1);
+  template.resourceCountIs("AWS::Events::Rule", 1);
+  template.hasResourceProperties("AWS::Lambda::EventSourceMapping", {
+    FunctionResponseTypes: ["ReportBatchItemFailures"],
+    StartingPosition: "LATEST",
+    DestinationConfig: { OnFailure: { Destination: Match.anyValue() } },
+  });
   template.hasResourceProperties("AWS::Cognito::UserPool", {
     AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }, MfaConfiguration: "ON",
   });
+  template.hasResourceProperties("AWS::Cognito::UserPoolGroup", {
+    GroupName: "CommunityAdministrators", UserPoolId: { Ref: poolId },
+  });
+  template.hasResourceProperties("AWS::ApiGatewayV2::Integration", {
+    IntegrationType: "AWS_PROXY",
+  });
+  for (const [name, defaultValue] of [
+    ["ApplicationIntakeEnabled", "false"],
+    ["ApplicationConsentPolicyVersion", ""],
+    ["ApplicationRetentionDays", 0],
+  ] as const) {
+    template.hasParameter(name, { Default: defaultValue });
+  }
   const policies = JSON.stringify(template.findResources("AWS::IAM::Policy"));
-  assert.doesNotMatch(policies, /dynamodb:|events:|sts:AssumeRole|"Resource":"\*"/);
+  assert.match(policies, /dynamodb:PutItem/);
+  assert.match(policies, /dynamodb:EnclosingOperation/);
+  assert.match(policies, /APPLICATION#\*/);
+  assert.match(policies, /OUTBOX#\*/);
+  assert.match(policies, /events:PutEvents/);
+  assert.match(policies, /events:source/);
+  assert.match(policies, /dotcom\.mentor\.approved\.v1/);
+  assert.doesNotMatch(policies, /events:(Create|Delete|PutRule|PutTargets)|sts:AssumeRole/);
+  for (const policy of Object.values(template.findResources("AWS::IAM::Policy"))) {
+    for (const statement of policy.Properties.PolicyDocument.Statement) {
+      if (statement.Resource === "*") assert.equal(statement.Action, "dynamodb:ListStreams");
+    }
+  }
 });
 
 test("production records and identities are retained with PITR and deletion protection", () => {
