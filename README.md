@@ -1,7 +1,10 @@
 # Community portfolio foundation
 
-This private repository is moving toward CUT BLOCK Development (provisional
-display brand), initially an adults-only tech/mentorship pilot. See the
+This private repository contains CUT BLOCK Development, initially a planned
+adults-only tech/mentorship pilot. Public brand publication is approved; intake,
+enrollment and Founder access remain closed pending real UAT. Default local
+builds remain noindex previews; explicit approved production builds present the
+public brand. See the
 [domain and release ADR](docs/adr/0001-domain-and-release-boundaries.md).
 The approved default-branch migration is `master` to `main`.
 
@@ -38,6 +41,14 @@ needed. It publishes only the modern preview to the stack's generated CloudFront
 URL, without deploying infrastructure or opening enrollment. See the runbook
 for activation and remaining live checks.
 
+`Promote reviewed production web` builds one explicitly approved production
+candidate from a reviewed main SHA, stages those exact bytes in protected
+development, and promotes the same immutable artifact through protected
+production approval. It never deploys the backend or opens enrollment. Its
+development staging requires noindex response headers. Production publisher,
+DNS/certificates, callback/CORS and backend changes are reviewed separately by
+the operator; nothing is deployed by this source change.
+
 CRA is patched from 4.0.1 to 4.0.3 to accommodate this repo's existing TypeScript
 4.1 dependency under npm peer validation. No force/legacy-peer bypass is used.
 The single lockfile is updated to npm's current format; frontend migration is
@@ -49,8 +60,9 @@ in current CDK/ESLint tooling; CI reports them and fails at high severity.
 Confirmed hosts are `cutblock.org`, `dev.cutblock.org` and `api.cutblock.org`.
 Reuse the registered Route 53 zone. The roadmap includes technology, AI,
 mentorship, athletic training, fitness and future facilities; only the approved
-adult pilot is the planned first concept, not an enabled service. Brand clearance, certificates, cutover and
-protected production approval remain gates; no automatic production scaffolding
+adult pilot is the planned first concept, not an enabled service. Certificates,
+reviewed cutover and protected production approval remain release gates; public
+brand approval is not legal or operational certification. No automatic production scaffolding
 deployment is permitted. "Planned adult pilot" does not mean applications or
 enrollment are open.
 

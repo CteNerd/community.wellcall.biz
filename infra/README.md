@@ -1,6 +1,9 @@
 # Community infrastructure foundation
 
-This is reviewable source, not a deployment authorization or enrollment launch.
+This is reviewable source, not an executed deployment or enrollment launch.
+Public brand publication is approved; the operator owns backend deployment,
+bootstrap, change-set execution, environment protection and Founder access.
+Intake/enrollment/Founder access remain closed pending real UAT.
 Run from the repository root with Node 24 and npm 11.6.2:
 
 ```sh
@@ -24,16 +27,22 @@ Region is fixed to `us-east-1`.
 - On-demand core table with an application-review index, a pending-outbox index,
   TTL and a new-image stream; production PITR, deletion protection and retention.
 - Private S3, CloudFront OAC/HTTPS/security headers; no uploaded assets or broad
-  SPA fallback. Development source rewrites only GET/HEAD `/internal` or
+  SPA fallback. Both environments rewrite only GET/HEAD `/internal` or
   `/internal/` to `/index.html`, preserving query; unknown/assets keep origin errors;
-  production routing is unchanged. Legacy applications are not replaced.
+  both exact internal paths always return noindex response headers. Development
+  adds noindex headers to all paths so production-candidate staging is safe.
+  Public production paths use security headers without noindex. Legacy
+  applications are not replaced.
 - Invitation-only Cognito with required authenticator MFA and a public client.
   The `CommunityAdministrators` group is empty by default. No initial users
-  or group memberships are provisioned. Development **source only** now includes
+  or group memberships are provisioned. Both environments include
   a generated hosted-login domain (`rct-dotcom-development-<account>`) and an
   authorization-code public client with `openid` scope, `/internal` callback,
-  and root logout URI. Production identity configuration is unchanged and has
-  no hosted-login domain. None of these changes has been deployed or activated.
+  and root logout URI (production uses `rct-dotcom-production-<account>`).
+  `OAuthOrigin`, `AuthIssuer`, `AuthRedirectUri`, `AuthLogoutUri` and the existing
+  client/pool outputs supply the future frontend configuration. Legacy
+  `Development*` outputs are retained only in development. No users or client
+  configuration are activated by web promotion.
 - Node 24 API and outbox-publisher Lambdas with scoped roles and 7/30-day
   dev/prod log retention.
 - Public `GET /health`; JWT-protected `GET /me` and `POST /applications`;
@@ -86,21 +95,32 @@ approvals are recorded and the relevant gates are deliberately configured.
 
 ## DNS, delivery and rollback
 
-Default synthesis creates no DNS records/certificates. `customDomains=true`
+Synthetic-account default synthesis creates no DNS records/certificates. `customDomains=true`
 imports the existing `cutblock.org` zone, creates a DNS-validated `us-east-1`
 web certificate and explicit aliases. Development API remains generated.
 Production also configures `api.cutblock.org` and requires
-`brandLaunchApproved=true`; the flag is not legal or deployment approval.
+`brandLaunchApproved=true`; the flag represents public brand/cutover approval,
+not legal clearance or readiness to accept people.
+
+**Real-account development updates preserve existing external resources.**
+Account `425061472162` defaults to importing the existing ACM certificate
+`arn:aws:acm:us-east-1:425061472162:certificate/9db61a17-da37-4d4a-a4a4-297344ef0d1f`
+and retaining the `dev.cutblock.org` CloudFront alias even when
+`customDomains=false`. The optional `existingDevelopmentCertificateArn`
+context makes this import explicit and validates its account/region.
+Neither mode creates/adopts Route 53 records or certificates for that existing
+development alias. Existing DNS stays externally owned. Real-account preservation
+assertions run offline in CI. Review live drift/change sets before UPDATE;
+do not deploy the synthetic-account assembly.
 
 Generated CloudFront URLs use the default CloudFront certificate/security
 policy; custom certificates use TLS 1.2. The source publisher validator accepts
 the generated CloudFront URL or exactly `https://dev.cutblock.org`; for the
 custom URL it verifies the distribution alias and ACM/TLS configuration. This
-change is source-only until merged, so the current main workflow still uses the
-generated URL. The live dev alias was added separately with AWS CLI; current
-stack outputs remain generated URLs. Before moving the alias into CDK
-management, review the complete change set. Publishing itself never changes
-DNS. See the [development handoff](../../consulting.wellcall.biz/docs/development-handoff-2026-11-06.md).
+change is source-only. The live dev alias was added separately; the reviewed
+UPDATE retains its certificate/alias and changes outputs/callback/CORS to the
+existing hostname without taking over its records. Publishing itself never
+changes DNS.
 
 ## Manual development web releases
 
@@ -122,7 +142,9 @@ policy as both identity grant and permissions boundary. It can list/read the
 own bucket location and public-access-block/policy status, GetObject/PutObject only `assets/*` and `index.html`,
 invalidate/read its own CloudFront distribution and describe only its own stack.
 It cannot delete objects, manage infrastructure/identities, touch business data
-or publish production. OIDC trust requires this exact repository, `development`
+or publish another environment. Production defines an equivalent independent
+role/policy/boundary scoped to only its own stack/bucket/distribution and
+`/rct/dotcom/production/` path. OIDC trust requires this exact repository, the respective
 environment and STS audience. Preserve the environment's single main-only branch
 policy; the environment OIDC subject itself does not encode the branch.
 
@@ -152,9 +174,102 @@ Rollback source with a reviewed revert PR, then inspect/redeploy the last
 approved stack/artifacts with the correct environment role. Never delete
 stacks, tables, identities or DNS as a shortcut. Rehearse data/auth recovery;
 retained resources and PITR are safeguards, not proof of a working restore.
-For web-only rollback, merge a reviewed revert and run the publisher again.
-Old hashed assets are retained; this is not an artifact-history rollback system
-or a verified recovery rehearsal.
+For preview-only rollback, merge a reviewed revert and run the development
+publisher again. For production, follow immutable-candidate recovery below.
+Neither path constitutes a verified operational/data recovery rehearsal.
+
+## Protected production promotion
+
+The manual `Promote reviewed production web` workflow is main-only and requires
+the exact reviewed main SHA as `reviewed_sha`. One credential-free candidate job
+installs modern workspaces on Node 24/npm 11.6.2, runs checks/lint/contracts/audit,
+builds once with explicitly approved public production branding, checks fixture
+exclusion, and uploads an immutable candidate plus SHA-256 manifest. The manifest
+binds every allowed file, byte length, digest, source SHA and run/attempt.
+
+The protected `development` job downloads that artifact by ID and verifies the
+manifest against the candidate-job digest before obtaining environment-scoped
+OIDC. It stages the production bytes, validates private-bucket/distribution
+ownership, checks API health and anonymous `/me` 401, compares live HTML/assets
+byte-for-byte, verifies noindex headers and both exact `/internal` routes, and
+requires unknown/asset probes to remain origin 403/404. Only after success can
+the protected `production` job download/verify/promote **the same bytes**, with
+no rebuild or workspace install. Production public responses must not be
+noindex. API readiness is required; backend deployment is separate.
+
+Operator prerequisites (not configured by this change):
+
+- Deploy reviewed development preservation/headers/routing and production
+  backend/custom-domain/publisher source; no intake parameters may be opened.
+- Existing GitHub OIDC provider, reviewed bootstrap/execution roles and
+  production portfolio bus SSM parameter
+  `/rct/production/portfolio/event-bus-arn` must be available.
+- Protect **both** GitHub environments with main-only deployment branches;
+  production must require an authorized reviewer and prevent self-review.
+  OIDC environment subjects do not themselves encode branch restrictions.
+- Set each environment's `AWS_WEB_PUBLISH_ROLE_ARN` to its own deployed
+  `WebPublishRoleArn`. Promotion fixes account `425061472162`/`us-east-1`;
+  the legacy development workflow additionally uses `AWS_ACCOUNT_ID`.
+- Keep internal UI/auth/intake/readiness build settings absent; do not create
+  users, grant Founder access or enable application collection before real UAT.
+
+No secrets, destructive S3 sync, infrastructure mutations or asset overwrites
+are used. New assets use conditional create; existing keys must have identical
+bytes. Old hashed assets remain. The entry point is uploaded last. The workflow
+retains immutable candidates and per-environment provenance/previous entry
+points for 90 days (subject to repository artifact-retention limits), including
+failure status, previous index digest, source/artifact/manifest identity, run,
+destination and invalidation. Download/archive approved artifacts before expiry.
+Failures after index publication require operator inspection; there is no
+automatic rollback, and a failed development job blocks production.
+
+For web rollback, an operator downloads the prior approved candidate/manifest,
+verifies its recorded digest and SHA, checks the destination with its own
+environment role, restores missing matching assets without overwriting/deleting
+others, then restores that candidate's index with no-cache and invalidates.
+Alternatively restore the retained previous index only after confirming every
+referenced hashed asset remains. Record a separate rollback provenance entry
+and re-run the live health/401/asset/deep-link checks. The workflow itself accepts
+only the reviewed current main SHA; it does not silently rebuild or substitute
+historical artifacts. Backend rollback is a separate reviewed change set.
+
+## Operator-only real-account change-set commands
+
+These are handoff commands, **not executed by this source change**. From `infra/`,
+after reviewed bootstrap/IAM and with the operator's approved AWS profile:
+
+```sh
+npx cdk synth -c environment=development -c account=425061472162 -c customDomains=false -c existingDevelopmentCertificateArn=arn:aws:acm:us-east-1:425061472162:certificate/9db61a17-da37-4d4a-a4a4-297344ef0d1f --output cdk.out/review-development --quiet
+npx cdk synth -c environment=production -c account=425061472162 -c customDomains=true -c brandLaunchApproved=true --output cdk.out/review-production --quiet
+
+npx cdk diff --app cdk.out/review-development rct-dotcom-development-foundation
+npx cdk diff --app cdk.out/review-production rct-dotcom-production-foundation
+
+npx cdk deploy --app cdk.out/review-development rct-dotcom-development-foundation --method prepare-change-set --change-set-name community-development-launch --parameters ApplicationIntakeEnabled=false --parameters ApplicationConsentPolicyVersion= --parameters ApplicationRetentionDays=0
+npx cdk deploy --app cdk.out/review-production rct-dotcom-production-foundation --method prepare-change-set --change-set-name community-production-launch --parameters ApplicationIntakeEnabled=false --parameters ApplicationConsentPolicyVersion= --parameters ApplicationRetentionDays=0
+```
+
+The assemblies use CDK's existing default `hnb659fds` synthesizer interface:
+file assets go to `cdk-hnb659fds-assets-425061472162-us-east-1`; the deploy,
+CloudFormation-execution and file-publishing role names are respectively
+`cdk-hnb659fds-deploy-role-425061472162-us-east-1`,
+`cdk-hnb659fds-cfn-exec-role-425061472162-us-east-1` and
+`cdk-hnb659fds-file-publishing-role-425061472162-us-east-1`.
+The manifest requires `/cdk-bootstrap/hnb659fds/version` at least 6
+(the unused lookup-role descriptor declares 8). There are no context lookups
+and no container/image assets. Each environment's `.assets.json` identifies
+two zipped Lambda code assets and the template file, with content-addressed
+keys. Inspect that manifest for exact hashes after the final reviewed commit.
+Reuse the approved existing bootstrap; do not repeat development bootstrap or
+widen shared roles. If the parent's governed production execution roles differ,
+the parent must explicitly map/review that execution interface before preparing
+a change set rather than silently relying on these default role descriptors.
+
+Preparing a change set writes AWS resources/metadata and may publish assets; it
+is exclusively the parent's/operator's responsibility. Inspect each complete
+change set, certificate/DNS ownership, retained resources, IAM boundary, SSM bus
+resolution and closed intake before separately authorizing execution. No CDK
+bootstrap, environment edits, DNS writes, merge or deployment occurs in this PR.
 
 Infrastructure alone disables `exactOptionalPropertyTypes` to accommodate CDK's
 optional-interface declarations; strict TS and app/API/domain exact-optionals

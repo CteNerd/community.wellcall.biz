@@ -1,8 +1,14 @@
 const repository = "CteNerd/community.wellcall.biz";
-const prefix = "rct-dotcom-development";
-const rolePath = "/rct/dotcom/development/";
-const customWebHost = "dev.cutblock.org";
-const customWebUrl = `https://${customWebHost}`;
+export function releaseTarget(env: NodeJS.ProcessEnv) {
+  const environment = env.RELEASE_ENVIRONMENT ?? "development";
+  if (environment !== "development" && environment !== "production") throw new Error("Invalid release environment");
+  return {
+    environment,
+    prefix: `rct-dotcom-${environment}`,
+    rolePath: `/rct/dotcom/${environment}/`,
+    customWebHost: environment === "production" ? "cutblock.org" : "dev.cutblock.org",
+  };
+}
 
 export type PreviewRelease = {
   bucket: string;
@@ -12,22 +18,25 @@ export type PreviewRelease = {
 };
 
 export function validateReleaseEnvironment(env: NodeJS.ProcessEnv): { account: string; roleArn: string } {
+  const { environment, prefix, rolePath } = releaseTarget(env);
   if (env.GITHUB_REPOSITORY !== repository || env.GITHUB_REF !== "refs/heads/main"
     || env.GITHUB_EVENT_NAME !== "workflow_dispatch") {
-    throw new Error("Development publishing requires a manual run on this repository's main branch");
+    throw new Error("Web publishing requires a manual run on this repository's main branch");
   }
   const account = env.AWS_ACCOUNT_ID;
   if (!account || !/^\d{12}$/.test(account) || account === "123456789012") {
-    throw new Error("Set development variable AWS_ACCOUNT_ID to the verified real account");
+    throw new Error("Set environment variable AWS_ACCOUNT_ID to the verified real account");
   }
+  if (environment === "production" && account !== "425061472162") throw new Error("Production account must be 425061472162");
   const roleArn = `arn:aws:iam::${account}:role${rolePath}${prefix}-web-publish`;
   if (env.AWS_WEB_PUBLISH_ROLE_ARN !== roleArn) {
-    throw new Error("Set AWS_WEB_PUBLISH_ROLE_ARN to this development stack's WebPublishRoleArn output");
+    throw new Error("Set AWS_WEB_PUBLISH_ROLE_ARN to this environment stack's WebPublishRoleArn output");
   }
   return { account, roleArn };
 }
 
 export function parsePreviewStack(value: unknown, env: NodeJS.ProcessEnv): PreviewRelease {
+  const { prefix, environment } = releaseTarget(env);
   const { account, roleArn } = validateReleaseEnvironment(env);
   if (!isRecord(value) || !Array.isArray(value.Stacks) || value.Stacks.length !== 1) {
     throw new Error("Expected exactly one deployed preview stack");
@@ -44,12 +53,17 @@ export function parsePreviewStack(value: unknown, env: NodeJS.ProcessEnv): Previ
   if (outputs.WebPublishRoleArn !== roleArn) throw new Error("Publisher role does not match the deployed stack");
   const bucket = requiredOutput(outputs, "WebBucket", /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/);
   const distributionId = requiredOutput(outputs, "DistributionId", /^[A-Z0-9]{8,32}$/);
-  const webUrl = requiredOutput(outputs, "WebUrl", /^https:\/\/(?:[a-z0-9]+\.cloudfront\.net|dev\.cutblock\.org)$/);
+  const webUrl = requiredOutput(outputs, "WebUrl", environment === "production" ? /^https:\/\/cutblock\.org$/
+    : /^https:\/\/(?:[a-z0-9]+\.cloudfront\.net|dev\.cutblock\.org)$/);
   const apiUrl = requiredOutput(outputs, "ApiUrl", /^https:\/\/[a-z0-9]+\.execute-api\.us-east-1\.amazonaws\.com$/);
   return { bucket, distributionId, webUrl, apiUrl };
 }
 
-export function verifyPreviewDistribution(value: unknown, release: Pick<PreviewRelease, "bucket" | "distributionId" | "webUrl">): void {
+export function verifyPreviewDistribution(value: unknown, release: Pick<PreviewRelease, "bucket" | "distributionId" | "webUrl">,
+  env: NodeJS.ProcessEnv = {}): void {
+  const { customWebHost } = releaseTarget(env);
+  const customWebUrl = `https://${customWebHost}`;
+  const certificateAccount = env.AWS_ACCOUNT_ID && /^\d{12}$/.test(env.AWS_ACCOUNT_ID) ? env.AWS_ACCOUNT_ID : "\\d{12}";
   const distribution = isRecord(value) ? value.Distribution : undefined;
   const domainName = isRecord(distribution) ? distribution.DomainName : undefined;
   const config = isRecord(distribution) ? distribution.DistributionConfig : undefined;
@@ -66,7 +80,7 @@ export function verifyPreviewDistribution(value: unknown, release: Pick<PreviewR
       || aliases.Items.length !== 1 || aliases.Items[0] !== customWebHost
       || !isRecord(certificate)
       || typeof certificate.ACMCertificateArn !== "string"
-      || !/^arn:aws:acm:us-east-1:\d{12}:certificate\/[0-9a-f-]{36}$/.test(certificate.ACMCertificateArn)
+      || !new RegExp(`^arn:aws:acm:us-east-1:${certificateAccount}:certificate/[0-9a-f-]{36}$`).test(certificate.ACMCertificateArn)
       || certificate.SSLSupportMethod !== "sni-only"
       || certificate.MinimumProtocolVersion !== "TLSv1.2_2021") {
       throw new Error("Custom preview hostname must match its CloudFront alias and ACM TLS configuration");

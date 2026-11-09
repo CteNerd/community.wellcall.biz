@@ -1,5 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { loadEnv } from "vite";
+import { readPresentation } from "../src/presentation.ts";
 
 const directory = resolve("dist");
 const forbidden = [
@@ -18,4 +20,13 @@ async function check(path) {
   }
 }
 await check(directory);
+const presentation = readPresentation({ ...loadEnv("production", process.cwd(), "VITE_"), ...process.env });
+const html = await readFile(resolve(directory, "index.html"), "utf8");
+if (presentation.production) {
+  if (/noindex|preview|provisional/i.test(html) || !html.includes(`href="${presentation.origin}/"`)) {
+    throw new Error("Approved production metadata must be public and use the exact production canonical origin");
+  }
+} else if (!html.includes('<meta name="robots" content="noindex, nofollow" />') || html.includes('rel="canonical"')) {
+  throw new Error("Default preview metadata must remain noindex without a production canonical URL");
+}
 console.log("Production artifacts contain no synthetic fixtures or role bypass.");

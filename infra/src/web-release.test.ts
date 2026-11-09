@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,28 @@ test("publishing rejects missing variables, other branches, automatic events and
     { GITHUB_REF: "refs/heads/feature" }, { GITHUB_EVENT_NAME: "push" },
     { GITHUB_REPOSITORY: "other/repo" }, { AWS_WEB_PUBLISH_ROLE_ARN: roleArn.replaceAll("development", "production") },
   ]) assert.throws(() => validateReleaseEnvironment({ ...env, ...override }));
+});
+
+test("explicit production release never accepts development roles, hosts, stacks or synthetic accounts", () => {
+  const productionAccount = "425061472162";
+  const productionRole = `arn:aws:iam::${productionAccount}:role/rct/dotcom/production/rct-dotcom-production-web-publish`;
+  const productionEnv = { ...env, RELEASE_ENVIRONMENT: "production", AWS_ACCOUNT_ID: productionAccount, AWS_WEB_PUBLISH_ROLE_ARN: productionRole };
+  const value = stackMetadata({
+    WebUrl: "https://cutblock.org", WebPublishRoleArn: productionRole,
+  });
+  value.Stacks[0]!.StackName = "rct-dotcom-production-foundation";
+  value.Stacks[0]!.StackId = `arn:aws:cloudformation:us-east-1:${productionAccount}:stack/rct-dotcom-production-foundation/test`;
+  assert.equal(parsePreviewStack(value, productionEnv).webUrl, "https://cutblock.org");
+  assert.throws(() => parsePreviewStack(value, env));
+  assert.throws(() => parsePreviewStack(stackMetadata(), productionEnv));
+  for (const override of [
+    { AWS_WEB_PUBLISH_ROLE_ARN: roleArn }, { AWS_ACCOUNT_ID: account },
+    { RELEASE_ENVIRONMENT: "other" },
+  ]) assert.throws(() => validateReleaseEnvironment({ ...productionEnv, ...override }));
+  for (const output of value.Stacks[0]!.Outputs) {
+    if (output.OutputKey === "WebUrl") output.OutputValue = "https://dev.cutblock.org";
+  }
+  assert.throws(() => parsePreviewStack(value, productionEnv));
 });
 
 test("preview metadata fails closed on unsafe destinations, role drift and unfinished stacks", () => {
@@ -122,7 +144,8 @@ test("bucket verification requires every public-access block and an explicitly n
 });
 
 test("release CLI emits only validated destinations and exits unsuccessfully when configuration is absent", (t) => {
-  const directory = mkdtempSync(join(tmpdir(), "community-release-test-"));
+  const directory = join(process.cwd(), `.community-release-test-${randomUUID()}`);
+  mkdirSync(directory);
   t.after(() => rmSync(directory, { recursive: true }));
   const metadataPath = join(directory, "stack.json");
   const environmentPath = join(directory, "github-env");
