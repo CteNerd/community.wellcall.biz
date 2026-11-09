@@ -102,6 +102,18 @@ test("owner adapter allowlists receipt privacy and sends exact authenticated ver
   expect(fetcher.mock.calls[0]?.[1].credentials).toBe("omit");
 });
 
+test("submission sends the displayed policy version only as a precondition", async () => {
+  const id = crypto.randomUUID();
+  const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ applicationId: id, status: "under_review" })));
+  const api = createApplicationApi("https://api.example.invalid", () => "memory-only", vi.fn(), fetcher);
+  const input = {
+    ...syntheticSubmission("mentor"),
+    expectedConsentPolicyVersion: "policy-displayed-to-applicant-v2",
+  };
+  await api.submit(input, crypto.randomUUID());
+  expect(JSON.parse(String(fetcher.mock.calls[0]?.[1].body))).toEqual(input);
+});
+
 test("adapter handles 401/403/409/503/network failures without silently using fixtures", async () => {
   const onDenied = vi.fn();
   for (const status of [401, 403, 409, 503]) {
@@ -162,6 +174,9 @@ test("synthetic inbox pagination is pending-only and preserves a cursor when ear
 test("synthetic idempotent retries do not create duplicates and reject changed payloads", async () => {
   const harness = createSyntheticHarness(vi.fn());
   harness.setRole("participant");
+  await expect(harness.api.submit({
+    ...syntheticSubmission("participant"), expectedConsentPolicyVersion: "stale-policy",
+  }, crypto.randomUUID())).rejects.toMatchObject({ status: 400 });
   const key = crypto.randomUUID();
   const first = await harness.api.submit(syntheticSubmission("participant"), key);
   expect(await harness.api.submit(syntheticSubmission("participant"), key)).toEqual(first);

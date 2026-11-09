@@ -8,6 +8,7 @@ export type ReviewApplication = AdultApplication & {
 };
 export type Submission = {
   kind: "participant" | "mentor"; contactName: string; contactEmail: string; consentAccepted: true;
+  expectedConsentPolicyVersion: string;
 };
 export type ReviewPage = { applications: ReviewApplication[]; nextToken: string | null };
 export interface ApplicationApi {
@@ -23,7 +24,7 @@ export class ApiError extends Error {
     super(status === 401 ? "Session expired. Sign in again."
       : status === 403 ? "Access denied. Reviewer access has been cleared."
       : status === 404 ? "Application not found or not available to this account."
-      : status === 409 ? "Application changed or action is not allowed. Refresh before trying again."
+      : status === 409 ? "Application changed, consent policy changed, or action is not allowed. Refresh before trying again."
       : status === 503 ? "Submission remains closed on the server."
       : status === 400 ? "Request was not accepted. Check the fields and refresh."
       : "Request failed. No successful change is confirmed; try again or refresh.");

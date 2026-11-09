@@ -106,6 +106,7 @@ test("applicants see only their own minimal status and can withdraw with the cur
   });
   const submitted = await api(authenticate(request("/applications", "POST", {
     kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true,
+    expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion,
   })));
   const path = `/applications/${JSON.parse(submitted.body!).applicationId}`;
   const closedApi = createApiHandler({
@@ -156,6 +157,7 @@ test("adult application submission requires a signed-in applicant and captures s
   });
   const body = {
     kind: "mentor", contactName: "  Applicant Name ", contactEmail: "Adult@Example.com", consentAccepted: true,
+    expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion,
   };
   assert.equal((await api(request("/applications", "POST", body))).statusCode, 401);
   const missingKey = authenticate(request("/applications", "POST", body));
@@ -179,15 +181,22 @@ test("adult application submission requires a signed-in applicant and captures s
     expiresAt: Math.floor(Date.parse("2026-11-05T12:00:00.000Z") / 1000) + 180 * 86400,
     version: 0,
   });
+
+  const stale = authenticate(request("/applications", "POST", {
+    ...body, expectedConsentPolicyVersion: "policy-shown-by-stale-client",
+  }));
+  assert.equal((await api(stale)).statusCode, 409);
+  assert.equal(store.created.length, 1);
 });
 
 test("application submission rejects self-asserted approval, unknown fields and malformed contact data", async () => {
   const api = createApiHandler({ applicationStore: createStore(), applicationIntake: approvedConfig });
   const invalid = [
-    { kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true, status: "approved" },
-    { kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: false },
-    { kind: "youth", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true },
-    { kind: "participant", contactName: "A", contactEmail: "bad", consentAccepted: true },
+    { kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true, expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion, status: "approved" },
+    { kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: false, expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion },
+    { kind: "youth", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true, expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion },
+    { kind: "participant", contactName: "A", contactEmail: "bad", consentAccepted: true, expectedConsentPolicyVersion: approvedConfig.consentPolicyVersion },
+    { kind: "mentor", contactName: "Applicant", contactEmail: "adult@example.com", consentAccepted: true },
   ];
   for (const body of invalid) {
     assert.equal((await api(authenticate(request("/applications", "POST", body)))).statusCode, 400);

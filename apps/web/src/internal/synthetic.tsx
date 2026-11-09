@@ -43,6 +43,7 @@ export function createSyntheticHarness(onDenied: (status: number) => void) {
     const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {};
     if (url.pathname === "/applications" && method === "POST") {
       if ((body.kind !== "participant" && body.kind !== "mentor") || body.consentAccepted !== true
+        || body.expectedConsentPolicyVersion !== policy
         || typeof body.contactName !== "string" || !/^Synthetic [A-Za-z -]{2,80}$/.test(body.contactName)
         || typeof body.contactEmail !== "string" || !/^[a-z0-9.-]+@example\.invalid$/.test(body.contactEmail)) return response(400, {});
       const key = new Headers(init?.headers).get("Idempotency-Key") ?? "";
@@ -151,4 +152,5 @@ export function SyntheticRoot() {
 
 export const syntheticSubmission = (kind: Submission["kind"]): Submission => ({
   kind, contactName: `Synthetic ${kind}`, contactEmail: `${kind}@example.invalid`, consentAccepted: true,
+  expectedConsentPolicyVersion: policy,
 });

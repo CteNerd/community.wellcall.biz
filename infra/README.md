@@ -43,19 +43,28 @@ Region is fixed to `us-east-1`.
   assignment endpoints are exposed.
 - Application intake has explicit CloudFormation gates: disabled by default,
   blank consent-policy version and zero retention. The API stores contact data
-  only when all gates are deliberately approved; a client cannot supply the
-  policy version, verified-adult result, screening result or application state.
+  only when all gates are deliberately approved; a client can send the
+  displayed consent policy version only as an expected-value precondition and
+  cannot choose the stored version, verified-adult result, screening result or
+  application state.
 - Submission records are TTL-bounded. Review updates require an expected
   version and an unexpired record; adult-eligibility and mentor-screening
   actions record the authenticated reviewer. Mentor approval atomically
-  updates the application and writes a PII-free reporting outbox event.
+  updates the application and writes a PII-free reporting outbox event. A
+  durable applicant-scoped first-approval guard ensures separate mentor
+  applications for the same applicant emit that initial event only once,
+  including concurrent approvals.
   Submissions require a UUID idempotency key and atomically pair the application
   with a 24-hour receipt; retries return the original application only when
   applicant and submitted fields match. The browser CORS allow-list includes
   that request header.
 - DynamoDB Streams retry outbox delivery with partial-batch handling and an
   SQS failure destination. A five-minute reconciliation schedule retries
-  pending outbox entries. The publisher accepts only the strict aggregate
+  pending outbox entries in bounded pages of 100, continuing from a durable
+  checkpoint for up to three pages per invocation. It advances the checkpoint
+  after each page even when individual events fail, so an oldest poison record
+  cannot block later entries; failures remain pending and are reported for
+  retry. The publisher accepts only the strict aggregate
   `rct.dotcom` mentor-approval event and only sends that source/detail type to
   the discovered portfolio bus.
 - No VPC, NAT, RDS, bus or changes to existing application ownership.

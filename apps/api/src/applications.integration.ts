@@ -66,7 +66,7 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
         .map((AttributeName) => ({ AttributeName, AttributeType: "S" })),
       KeySchema: [{ AttributeName: "PK", KeyType: "HASH" }, { AttributeName: "SK", KeyType: "RANGE" }],
       GlobalSecondaryIndexes: [1, 2].map((index) => ({
-        IndexName: index === 1 ? "ApplicationReviewIndex" : "OutboxPendingIndex",
+        IndexName: index === 1 ? "CommunityApplicationsIndex" : "OutboxPendingIndex",
         KeySchema: [
           { AttributeName: `GSI${index}PK`, KeyType: "HASH" },
           { AttributeName: `GSI${index}SK`, KeyType: "RANGE" },
@@ -84,7 +84,12 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
     const body = {
       kind: "participant", contactName: "Synthetic Applicant",
       contactEmail: "applicant@example.invalid", consentAccepted: true,
+      expectedConsentPolicyVersion: "synthetic-local-v1",
     };
+    const stalePolicy = await api(request("/applications", "POST", {
+      ...body, expectedConsentPolicyVersion: "synthetic-local-v0",
+    }));
+    assert.equal(stalePolicy.statusCode, 409);
     const key = randomUUID();
     const submission = await api(request("/applications", "POST", body, "synthetic-applicant", key));
     assert.equal(submission.statusCode, 201);
@@ -98,6 +103,13 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
       const own = await api(request(path));
       assert.equal(own.statusCode, 200);
       assert.doesNotMatch(own.body ?? "", /example\.invalid|contactName|contactEmail|applicantSub|screeningBy/);
+    });
+
+    await t.test("reviewer inbox reads pending applications through the deployed index name", async () => {
+      const inbox = await api(request("/admin/applications", "GET", undefined, "synthetic-reviewer"));
+      assert.equal(inbox.statusCode, 200);
+      const page = JSON.parse(inbox.body ?? "null") as { applications?: { applicationId: string }[] };
+      assert.ok(page.applications?.some((application) => application.applicationId === id));
     });
 
     await t.test("concurrent withdrawals allow exactly one version transition", async () => {
@@ -134,28 +146,38 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
       }))).statusCode, 404);
     });
 
-    await t.test("mentor approval checks prerequisites and writes exactly one sanitized outbox event", async () => {
-      const submitted = await api(request("/applications", "POST", { ...body, kind: "mentor" }));
-      const mentorId = applicationId(submitted.body);
-      const reviewPath = `/admin/applications/${mentorId}`;
-      const review = (value: Record<string, unknown>) =>
-        api(request(reviewPath, "PATCH", value, "synthetic-reviewer"));
-      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 0 })).statusCode, 409);
-      assert.equal((await review({ action: "verify_adult_eligibility", expectedVersion: 0 })).statusCode, 200);
-      assert.equal((await review({
-        action: "record_mentor_screening", result: "passed", expectedVersion: 1,
-      })).statusCode, 200);
-      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 2 })).statusCode, 200);
-      assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 2 })).statusCode, 409);
-      assert.equal((await api(request(`/applications/${mentorId}/withdraw`, "POST", {
-        expectedVersion: 3,
-      }))).statusCode, 409);
-      const record = await document.send(new GetCommand({
-        TableName: tableName, Key: { PK: `APPLICATION#${mentorId}`, SK: "METADATA" }, ConsistentRead: true,
+    await t.test("same-applicant mentor approvals race and repeat with one first-approval event", async () => {
+      const mentorIds: string[] = [];
+      const reviewer = "synthetic-reviewer";
+      for (let index = 0; index < 2; index++) {
+        const submitted = await api(request("/applications", "POST", { ...body, kind: "mentor" }, "same-synthetic-mentor"));
+        const mentorId = applicationId(submitted.body);
+        mentorIds.push(mentorId);
+        const reviewPath = `/admin/applications/${mentorId}`;
+        const review = (value: Record<string, unknown>) =>
+          api(request(reviewPath, "PATCH", value, reviewer));
+        assert.equal((await review({ action: "decide", decision: "approve", expectedVersion: 0 })).statusCode, 409);
+        assert.equal((await review({ action: "verify_adult_eligibility", expectedVersion: 0 })).statusCode, 200);
+        assert.equal((await review({
+          action: "record_mentor_screening", result: "passed", expectedVersion: 1,
+        })).statusCode, 200);
+      }
+
+      const approvals = await Promise.all(mentorIds.map((mentorId) =>
+        api(request(`/admin/applications/${mentorId}`, "PATCH", {
+          action: "decide", decision: "approve", expectedVersion: 2,
+        }, reviewer))));
+      assert.deepEqual(approvals.map(({ statusCode }) => statusCode), [200, 200]);
+      assert.equal((await api(request(`/admin/applications/${mentorIds[0]}`, "PATCH", {
+        action: "decide", decision: "approve", expectedVersion: 2,
+      }, reviewer))).statusCode, 409);
+
+      const marker = await document.send(new GetCommand({
+        TableName: tableName,
+        Key: { PK: "MENTOR_APPROVAL#same-synthetic-mentor", SK: "FIRST" },
+        ConsistentRead: true,
       }));
-      assert.equal(record.Item?.status, "approved");
-      assert.equal(record.Item?.version, 3);
-      assert.equal(record.Item?.GSI1PK, undefined);
+      assert.ok(mentorIds.includes(String(marker.Item?.applicationId)));
       const outbox = await document.send(new QueryCommand({
         TableName: tableName, IndexName: "OutboxPendingIndex",
         KeyConditionExpression: "GSI2PK = :pending",
@@ -164,6 +186,14 @@ test("real DynamoDB transactions preserve applicant ownership, idempotency, with
       assert.equal(outbox.Items?.length, 1);
       assert.equal(outbox.Items?.[0]?.event.detail.data.mentorCount, 1);
       assert.doesNotMatch(JSON.stringify(outbox.Items), /example\.invalid|contactName|contactEmail|applicantSub/);
+      for (const mentorId of mentorIds) {
+        const record = await document.send(new GetCommand({
+          TableName: tableName, Key: { PK: `APPLICATION#${mentorId}`, SK: "METADATA" }, ConsistentRead: true,
+        }));
+        assert.equal(record.Item?.status, "approved");
+        assert.equal(record.Item?.version, 3);
+        assert.equal(record.Item?.GSI1PK, undefined);
+      }
     });
   } finally {
     try {

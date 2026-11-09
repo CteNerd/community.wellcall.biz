@@ -182,7 +182,9 @@ export class ApplicationStack extends Stack {
       actions: ["dynamodb:GetItem"],
       resources: [core.tableArn],
       conditions: {
-        "ForAllValues:StringLike": { "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*"] },
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "MENTOR_APPROVAL#*"],
+        },
       },
     }));
     role.addToPolicy(new iam.PolicyStatement({
@@ -194,7 +196,9 @@ export class ApplicationStack extends Stack {
       resources: [core.tableArn],
       conditions: {
         "ForAnyValue:StringEquals": { "dynamodb:EnclosingOperation": ["TransactWriteItems"] },
-        "ForAllValues:StringLike": { "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "OUTBOX#*"] },
+        "ForAllValues:StringLike": {
+          "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "MENTOR_APPROVAL#*", "OUTBOX#*"],
+        },
         Null: { "dynamodb:LeadingKeys": "false" },
       },
     }));
@@ -281,6 +285,13 @@ export class ApplicationStack extends Stack {
     });
     publisherLogGroup.grantWrite(publisherRole);
     core.grantStreamRead(publisherRole);
+    publisherRole.addToPolicy(new iam.PolicyStatement({
+      actions: ["dynamodb:GetItem"],
+      resources: [core.tableArn],
+      conditions: {
+        "ForAllValues:StringEquals": { "dynamodb:LeadingKeys": ["OUTBOX#RECONCILIATION"] },
+      },
+    }));
     publisherRole.addToPolicy(new iam.PolicyStatement({
       actions: ["dynamodb:UpdateItem"],
       resources: [core.tableArn],

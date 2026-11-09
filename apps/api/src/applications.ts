@@ -285,11 +285,57 @@ export class DynamoApplicationStore implements ApplicationStore {
       },
     }];
     const event = reviewed.reportingEvent;
-    if (event) transactionItems.push(buildOutboxPut(this.tableName, event));
+    const approvalKey = application.kind === "mentor"
+      ? { PK: `MENTOR_APPROVAL#${application.applicantSub}`, SK: "FIRST" }
+      : undefined;
+    let firstApproval = false;
+    if (event && approvalKey) {
+      const priorApproval = await this.client.send(new GetCommand({
+        TableName: this.tableName, Key: approvalKey, ConsistentRead: true,
+      }));
+      firstApproval = priorApproval.Item === undefined;
+    }
+    if (event && approvalKey && firstApproval) {
+      transactionItems.push({
+        Put: {
+          TableName: this.tableName,
+          Item: {
+            ...approvalKey,
+            recordType: "MENTOR_FIRST_APPROVAL",
+            applicationId: application.applicationId,
+            approvedAt: event.detail.occurredAt,
+            eventId: event.detail.eventId,
+          },
+          ConditionExpression: "attribute_not_exists(PK)",
+        },
+      });
+      transactionItems.push(buildOutboxPut(this.tableName, event));
+    }
 
     try {
       await this.client.send(new TransactWriteCommand({ TransactItems: transactionItems }));
     } catch (error) {
+      if (firstApproval && approvalKey
+        && (error instanceof TransactionCanceledException || error instanceof ConditionalCheckFailedException)) {
+        const winner = await this.client.send(new GetCommand({
+          TableName: this.tableName, Key: approvalKey, ConsistentRead: true,
+        }));
+        if (winner.Item !== undefined) {
+          const firstApprovalAlreadyRecorded: NonNullable<TransactWriteCommandInput["TransactItems"]> = [
+            transactionItems[0]!,
+          ];
+          try {
+            await this.client.send(new TransactWriteCommand({ TransactItems: firstApprovalAlreadyRecorded }));
+          } catch (retryError) {
+            if (retryError instanceof TransactionCanceledException
+              || retryError instanceof ConditionalCheckFailedException) {
+              throw new ApplicationConflictError();
+            }
+            throw retryError;
+          }
+          return { ...application, ...reviewed.application, version: nextVersion };
+        }
+      }
       if (error instanceof TransactionCanceledException || error instanceof ConditionalCheckFailedException) {
         throw new ApplicationConflictError();
       }

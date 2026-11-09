@@ -64,8 +64,11 @@ errors, ownership 404, denied 403, version/prerequisite 409, closed-server 503,
 and uncertain transport errors are explicit. No fixture fallback exists.
 
 The applicant adapter allowlists receipt fields and sends no client identity,
-eligibility, reviewer data, policy version, or retention overrides. Submission
-uses a UUID idempotency key retained only for unchanged-form retries during this
+eligibility, reviewer data, stored policy value, or retention override.
+Submission sends the policy version displayed with the consent text only as an
+`expectedConsentPolicyVersion` precondition. The API rejects a stale version
+with 409 and stores its own configured policy version. Submission also uses a
+UUID idempotency key retained only for unchanged-form retries during this
 session. Save the receipt ID privately: there is no owner-list endpoint.
 Withdrawal sends the retrieved `expectedVersion`. Reviewer inbox pages use the
 existing opaque cursor (at most 25 records, navigation capped at ten pages);

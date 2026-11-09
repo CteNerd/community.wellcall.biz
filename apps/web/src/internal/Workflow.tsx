@@ -137,6 +137,7 @@ export function Workflow({
             kind: fields.get("kind") === "mentor" ? "mentor" : "participant",
             contactName: String(fields.get("contactName")).trim(),
             contactEmail: String(fields.get("contactEmail")).trim().toLowerCase(), consentAccepted: true,
+            expectedConsentPolicyVersion: intake.policyVersion,
           };
           const pending = submission && JSON.stringify(submission.input) === JSON.stringify(input)
             ? submission : { input, key: crypto.randomUUID() };

@@ -1,6 +1,8 @@
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { EventBridgeClient, PutEventsCommand } from "@aws-sdk/client-eventbridge";
-import { DynamoDBDocumentClient, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocumentClient, GetCommand, QueryCommand, UpdateCommand,
+} from "@aws-sdk/lib-dynamodb";
 import type { DynamoDBStreamEvent, ScheduledEvent } from "aws-lambda";
 import type { MentorApprovalEvent } from "../../../packages/domain/src/adult-application.ts";
 
@@ -11,11 +13,21 @@ type OutboxItem = {
   status: string;
 };
 
+type PendingPage = {
+  items: OutboxItem[];
+  nextCursor: string | null;
+};
+
 type PublisherDependencies = {
   publish(event: MentorApprovalEvent): Promise<void>;
   markDelivered(item: OutboxItem): Promise<void>;
-  findPending(): Promise<OutboxItem[]>;
+  getCheckpoint(): Promise<string | null>;
+  findPending(cursor: string | null): Promise<PendingPage>;
+  saveCheckpoint(expected: string | null, next: string | null): Promise<void>;
 };
+
+export const maxReconciliationPages = 3;
+export const reconciliationPageSize = 100;
 
 export function createOutboxPublisher(dependencies: PublisherDependencies) {
   return async (input: DynamoDBStreamEvent | ScheduledEvent) => {
@@ -46,17 +58,28 @@ export function createOutboxPublisher(dependencies: PublisherDependencies) {
       return { batchItemFailures };
     }
 
-    const pending = await dependencies.findPending();
-    const failures: Error[] = [];
-    for (const item of pending) {
-      try {
-        await deliver(item, dependencies);
-      } catch {
-        failures.push(new Error("Outbox delivery failed"));
+    let cursor = await dependencies.getCheckpoint();
+    let pages = 0;
+    let delivered = 0;
+    let failures = 0;
+    while (pages < maxReconciliationPages) {
+      const previous = cursor;
+      const page = await dependencies.findPending(previous);
+      pages += 1;
+      for (const item of page.items) {
+        try {
+          await deliver(item, dependencies);
+          delivered += 1;
+        } catch {
+          failures += 1;
+        }
       }
+      cursor = page.nextCursor;
+      if (cursor !== previous) await dependencies.saveCheckpoint(previous, cursor);
+      if (cursor === null) break;
     }
-    if (failures.length > 0) throw new Error(`Failed to deliver ${failures.length} pending event(s)`);
-    return { delivered: pending.length };
+    if (failures > 0) throw new Error(`Failed to deliver ${failures} pending event(s)`);
+    return { delivered, pages, nextCursor: cursor };
   };
 }
 
@@ -88,6 +111,7 @@ const tableName = process.env.CORE_TABLE_NAME ?? "";
 const busArn = process.env.EVENT_BUS_ARN ?? "";
 const documentClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const eventBridge = new EventBridgeClient({});
+const checkpointKey = { PK: "OUTBOX#RECONCILIATION", SK: "CHECKPOINT" };
 
 type StreamAttribute = NonNullable<DynamoDBStreamEvent["Records"][number]["dynamodb"]>["NewImage"];
 
@@ -149,14 +173,65 @@ export const handler = createOutboxPublisher({
       if (!(error instanceof ConditionalCheckFailedException)) throw error;
     }
   },
-  async findPending() {
+  async getCheckpoint() {
+    const result = await documentClient.send(new GetCommand({
+      TableName: tableName, Key: checkpointKey, ConsistentRead: true,
+    }));
+    if (result.Item === undefined) return null;
+    if (!isOutboxCursor(result.Item.cursor)) {
+      throw new Error("Outbox reconciliation checkpoint is invalid");
+    }
+    return result.Item.cursor;
+  },
+  async findPending(cursor) {
     const result = await documentClient.send(new QueryCommand({
       TableName: tableName,
       IndexName: "OutboxPendingIndex",
-      KeyConditionExpression: "GSI2PK = :pending",
-      ExpressionAttributeValues: { ":pending": "OUTBOX#PENDING" },
-      Limit: 100,
+      KeyConditionExpression: cursor === null
+        ? "GSI2PK = :pending"
+        : "GSI2PK = :pending AND GSI2SK > :cursor",
+      ExpressionAttributeValues: {
+        ":pending": "OUTBOX#PENDING",
+        ...(cursor === null ? {} : { ":cursor": cursor }),
+      },
+      Limit: reconciliationPageSize,
     }));
-    return (result.Items ?? []) as OutboxItem[];
+    return {
+      items: (result.Items ?? []) as OutboxItem[],
+      nextCursor: result.LastEvaluatedKey === undefined ? null : encodeCursor(result.LastEvaluatedKey),
+    };
+  },
+  async saveCheckpoint(expected, next) {
+    try {
+      await documentClient.send(new UpdateCommand({
+        TableName: tableName,
+        Key: checkpointKey,
+        UpdateExpression: next === null ? "REMOVE #cursor" : "SET #cursor = :next",
+        ConditionExpression: expected === null ? "attribute_not_exists(#cursor)" : "#cursor = :expected",
+        ExpressionAttributeNames: { "#cursor": "cursor" },
+        ExpressionAttributeValues: {
+          ...(expected === null ? {} : { ":expected": expected }),
+          ...(next === null ? {} : { ":next": next }),
+        },
+      }));
+    } catch (error) {
+      if (error instanceof ConditionalCheckFailedException) {
+        throw new Error("Outbox reconciliation checkpoint changed; retry recovery");
+      }
+      throw error;
+    }
   },
 });
+
+function encodeCursor(value: Record<string, unknown>): string {
+  if (!isOutboxCursor(value.GSI2SK)) throw new Error("Unable to create outbox reconciliation cursor");
+  return value.GSI2SK;
+}
+
+function isOutboxCursor(value: unknown): value is string {
+  if (typeof value !== "string" || value.length > 128) return false;
+  const delimiter = value.indexOf("#");
+  return delimiter > 0 && value.indexOf("#", delimiter + 1) === -1
+    && isTimestamp(value.slice(0, delimiter))
+    && isUuid(value.slice(delimiter + 1));
+}

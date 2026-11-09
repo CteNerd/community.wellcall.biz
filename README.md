@@ -56,9 +56,11 @@ enrollment are open.
 
 The source now includes authenticated adult-application submission, group-gated
 review actions, owner-only application status/withdrawal, version-checked
-updates, retention expiry and an atomic,
-aggregate-only mentor-approval outbox; application creation also uses a
-24-hour idempotency receipt. The API has no public signup or youth
+updates, retention expiry and an atomic, aggregate-only mentor-approval outbox.
+A durable applicant-scoped transaction guard emits the initial mentor approval
+once per applicant, even when separate mentor applications are approved
+concurrently. Application creation also uses a 24-hour idempotency receipt.
+The API has no public signup or youth
 routes, and no application UI is published. Source now contains an explicitly
 configuration-gated `/internal` applicant/reviewer workspace plus a separate,
 opt-in loopback synthetic rehearsal. See [local UAT and auth gates](apps/web/README.md).
@@ -81,6 +83,12 @@ mentor offboarding or revocation of an approved application. Withdrawal emits
 no mentor-approval event. Existing applicants can read or withdraw even while
 new intake is closed. These endpoints remain source-only, not deployed.
 
+Application submission includes the policy version displayed with the consent
+text as `expectedConsentPolicyVersion`, in addition to
+`consentAccepted: true`. The API returns 409 if that expected version no longer
+matches its configured policy; it stores only the server-configured version.
+This prevents a stale page from recording acknowledgment of newer policy text.
+
 ## Local-only integration and synthetic UI checks
 
 The opt-in UI rehearsal is documented in [apps/web/README.md](apps/web/README.md):
@@ -98,11 +106,13 @@ DYNAMODB_ENDPOINT=http://127.0.0.1:8000 node --test apps/api/src/applications.in
 The check rejects non-loopback endpoints, supplies explicit fake `local` /
 `local` credentials, creates a uniquely named synthetic test table, and deletes
 it afterward. Never provide real AWS credentials or an AWS endpoint. It covers
-idempotent submission, owner privacy, concurrent withdrawal, expiry before TTL,
-eligibility/screening and mentor approval with one sanitized transactional
-outbox record. This does not publish events, validate Cognito, or activate a
-pilot. The parent-run hosted feature CI validated five checks with zero failures
-and zero skips; no local Docker/JVM integration execution is claimed.
+idempotent submission, stale-policy rejection, owner privacy, the reviewer
+inbox query, concurrent withdrawal, expiry before TTL, eligibility/screening,
+and concurrent/repeated mentor approvals for separate applications owned by
+one applicant, with exactly one sanitized transactional outbox record. This
+does not publish events, validate Cognito, or activate a pilot. The parent-run
+hosted integration uses the same pinned DynamoDB Local service; local
+Docker/JVM execution is not claimed when unavailable.
 
 ## Legacy development commands (historical)
 

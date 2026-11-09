@@ -192,7 +192,9 @@ test("mentor approval and aggregate outbox insert use one conditional transactio
   const client = {
     async send(command: unknown) {
       commands.push(command);
-      if (command instanceof GetCommand) return { Item: storedItem() };
+      if (command instanceof GetCommand) {
+        return command.input.Key?.PK === `APPLICATION#${applicationId}` ? { Item: storedItem() } : {};
+      }
       return {};
     },
   } as unknown as DynamoDBDocumentClient;
@@ -209,16 +211,79 @@ test("mentor approval and aggregate outbox insert use one conditional transactio
   assert.equal(result.status, "approved");
   assert.equal(result.version, 1);
   assert.ok(commands[0] instanceof GetCommand);
-  assert.ok(commands[1] instanceof TransactWriteCommand);
-  const transaction = (commands[1] as TransactWriteCommand).input.TransactItems;
-  assert.equal(transaction?.length, 2);
+  assert.ok(commands[1] instanceof GetCommand);
+  assert.ok(commands[2] instanceof TransactWriteCommand);
+  const transaction = (commands[2] as TransactWriteCommand).input.TransactItems;
+  assert.equal(transaction?.length, 3);
   const update = transaction?.[0]?.Update;
-  const outbox = transaction?.[1]?.Put;
+  const guard = transaction?.[1]?.Put;
+  const outbox = transaction?.[2]?.Put;
   assert.match(update?.ConditionExpression ?? "", /#version = :expectedVersion AND expiresAt > :now/);
+  assert.equal(guard?.Item?.PK, "MENTOR_APPROVAL#applicant-sub");
+  assert.equal(guard?.Item?.SK, "FIRST");
+  assert.equal(guard?.ConditionExpression, "attribute_not_exists(PK)");
   assert.equal(outbox?.Item?.status, "PENDING");
   assert.equal(outbox?.Item?.GSI2PK, "OUTBOX#PENDING");
   assert.deepEqual(outbox?.Item?.event.detail.data, { reportingMonth: "2026-11", mentorCount: 1 });
   assert.doesNotMatch(JSON.stringify(outbox?.Item?.event), /Applicant|adult@example\.com|applicant-sub/);
+});
+
+test("existing applicant first-approval guard suppresses later application outbox events", async () => {
+  const commands: unknown[] = [];
+  const client = {
+    async send(command: unknown) {
+      commands.push(command);
+      if (command instanceof GetCommand) {
+        return command.input.Key?.PK === `APPLICATION#${applicationId}`
+          ? { Item: storedItem() }
+          : { Item: { PK: "MENTOR_APPROVAL#applicant-sub", SK: "FIRST" } };
+      }
+      return {};
+    },
+  } as unknown as DynamoDBDocumentClient;
+  const store = new DynamoApplicationStore(client, "community-core");
+  const result = await store.review({
+    applicationId, action: { type: "decide", decision: "approve" },
+    reviewerId: "reviewer-2", consentPolicyVersion: "approved-v1", expectedVersion: 0, now,
+  });
+  assert.equal(result.status, "approved");
+  const transaction = commands.find((command) => command instanceof TransactWriteCommand) as TransactWriteCommand;
+  assert.equal(transaction.input.TransactItems?.length, 1);
+  assert.ok(transaction.input.TransactItems?.[0]?.Update);
+});
+
+test("approval race observes the durable winner and retries the other application without another event", async () => {
+  const commands: unknown[] = [];
+  let markerWritten = false;
+  const client = {
+    async send(command: unknown) {
+      commands.push(command);
+      if (command instanceof GetCommand) {
+        return command.input.Key?.PK === `APPLICATION#${applicationId}`
+          ? { Item: storedItem() }
+          : markerWritten ? { Item: { PK: "MENTOR_APPROVAL#applicant-sub", SK: "FIRST" } } : {};
+      }
+      if (command instanceof TransactWriteCommand && !markerWritten) {
+        markerWritten = true;
+        throw new TransactionCanceledException({
+          message: "Another application won the first-approval guard", $metadata: {},
+          CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+        });
+      }
+      markerWritten = true;
+      return {};
+    },
+  } as unknown as DynamoDBDocumentClient;
+  const store = new DynamoApplicationStore(client, "community-core");
+  const result = await store.review({
+    applicationId, action: { type: "decide", decision: "approve" },
+    reviewerId: "reviewer-2", consentPolicyVersion: "approved-v1", expectedVersion: 0, now,
+  });
+  assert.equal(result.status, "approved");
+  const transactions = commands.filter((command) => command instanceof TransactWriteCommand) as TransactWriteCommand[];
+  assert.equal(transactions.length, 2);
+  assert.equal(transactions[0]?.input.TransactItems?.length, 3);
+  assert.equal(transactions[1]?.input.TransactItems?.length, 1);
 });
 
 test("application and short-lived idempotency receipt are created atomically without contact data in the receipt", async () => {

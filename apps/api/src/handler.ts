@@ -135,8 +135,14 @@ async function submitApplication(
   }
   const body = parseJsonBody(event, maxBodyBytes);
   if (!body.ok) return body.response;
-  const submission = parseApplicationSubmission(body.value);
-  if (!submission) return response(400, { error: "Invalid application" });
+  const parsed = parseApplicationSubmission(body.value);
+  if (!parsed) return response(400, { error: "Invalid application" });
+  if (parsed.expectedConsentPolicyVersion !== applicationIntake.consentPolicyVersion) {
+    return response(409, { error: "Consent policy changed. Review the current policy before submitting." });
+  }
+  const submission = {
+    kind: parsed.kind, contactName: parsed.contactName, contactEmail: parsed.contactEmail,
+  };
   const now = (dependencies.now ?? (() => new Date()))();
   const application = createApplication({
     ...submission,
@@ -281,19 +287,28 @@ function parseApplicationSubmission(value: unknown): {
   kind: "participant" | "mentor";
   contactName: string;
   contactEmail: string;
+  expectedConsentPolicyVersion: string;
 } | undefined {
   if (!isRecord(value)
-    || Object.keys(value).sort().join(",") !== "consentAccepted,contactEmail,contactName,kind"
+    || Object.keys(value).sort().join(",")
+      !== "consentAccepted,contactEmail,contactName,expectedConsentPolicyVersion,kind"
     || value.consentAccepted !== true
     || (value.kind !== "participant" && value.kind !== "mentor")
     || typeof value.contactName !== "string"
-    || typeof value.contactEmail !== "string") return undefined;
+    || typeof value.contactEmail !== "string"
+    || typeof value.expectedConsentPolicyVersion !== "string"
+    || value.expectedConsentPolicyVersion.length < 1
+    || value.expectedConsentPolicyVersion.length > 200
+    || /[\u0000-\u001f\u007f]/.test(value.expectedConsentPolicyVersion)) return undefined;
   const contactName = value.contactName.trim();
   const contactEmail = value.contactEmail.trim().toLowerCase();
   if (contactName.length < 2 || contactName.length > 100 || /[\u0000-\u001f\u007f]/.test(contactName)
     || contactEmail.length > 254
     || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return undefined;
-  return { kind: value.kind, contactName, contactEmail };
+  return {
+    kind: value.kind, contactName, contactEmail,
+    expectedConsentPolicyVersion: value.expectedConsentPolicyVersion,
+  };
 }
 
 function parseApplicationReview(value: unknown): {

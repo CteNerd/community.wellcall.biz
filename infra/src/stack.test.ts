@@ -114,7 +114,9 @@ test("development foundation has private hosting, no DNS writes, and protected i
   assert.match(policies, /dynamodb:PutItem/);
   assert.match(policies, /dynamodb:EnclosingOperation/);
   assert.match(policies, /APPLICATION#\*/);
+  assert.match(policies, /MENTOR_APPROVAL#\*/);
   assert.match(policies, /OUTBOX#\*/);
+  assert.match(policies, /OUTBOX#RECONCILIATION/);
   assert.match(policies, /events:PutEvents/);
   assert.match(policies, /events:source/);
   assert.match(policies, /dotcom\.mentor\.approved\.v1/);
