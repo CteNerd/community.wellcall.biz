@@ -24,10 +24,16 @@ Region is fixed to `us-east-1`.
 - On-demand core table with an application-review index, a pending-outbox index,
   TTL and a new-image stream; production PITR, deletion protection and retention.
 - Private S3, CloudFront OAC/HTTPS/security headers; no uploaded assets or broad
-  SPA fallback. Legacy applications are not replaced.
+  SPA fallback. Development source rewrites only GET/HEAD `/internal` or
+  `/internal/` to `/index.html`, preserving query; unknown/assets keep origin errors;
+  production routing is unchanged. Legacy applications are not replaced.
 - Invitation-only Cognito with required authenticator MFA and a public client.
-  The `CommunityAdministrators` group is empty by default. No signup/login UI,
-  hosted login domain or initial users are provisioned.
+  The `CommunityAdministrators` group is empty by default. No initial users
+  or group memberships are provisioned. Development **source only** now includes
+  a generated hosted-login domain (`rct-dotcom-development-<account>`) and an
+  authorization-code public client with `openid` scope, `/internal` callback,
+  and root logout URI. Production identity configuration is unchanged and has
+  no hosted-login domain. None of these changes has been deployed or activated.
 - Node 24 API and outbox-publisher Lambdas with scoped roles and 7/30-day
   dev/prod log retention.
 - Public `GET /health`; JWT-protected `GET /me` and `POST /applications`;

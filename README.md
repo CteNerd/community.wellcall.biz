@@ -26,8 +26,8 @@ safeguarding. Node 24 is for the new foundation, not a claim of CRA compatibilit
 The preview opens no enrollment and collects no data; the roadmap is not an
 operating program or legal-status claim. The domain now includes a tested
 adult-application review transition that blocks approval without verified adult
-eligibility, current consent and (for mentors) completed screening. This is not
-an application endpoint or a verified screening process; policy and operational
+eligibility, current consent and (for mentors) completed screening. The
+source-only endpoints and UI are not a verified screening process; policy and operational
 gates remain unresolved, and youth participation remains gated. See the
 [infrastructure/release runbook](infra/README.md).
 
@@ -49,7 +49,7 @@ in current CDK/ESLint tooling; CI reports them and fails at high severity.
 Confirmed hosts are `cutblock.org`, `dev.cutblock.org` and `api.cutblock.org`.
 Reuse the registered Route 53 zone. The roadmap includes technology, AI,
 mentorship, athletic training, fitness and future facilities; only the approved
-adult pilot is initially enabled. Brand clearance, certificates, cutover and
+adult pilot is the planned first concept, not an enabled service. Brand clearance, certificates, cutover and
 protected production approval remain gates; no automatic production scaffolding
 deployment is permitted. "Planned adult pilot" does not mean applications or
 enrollment are open.
@@ -59,7 +59,10 @@ review actions, owner-only application status/withdrawal, version-checked
 updates, retention expiry and an atomic,
 aggregate-only mentor-approval outbox; application creation also uses a
 24-hour idempotency receipt. The API has no public signup or youth
-routes, and no application UI is published. Intake defaults to disabled with a
+routes, and no application UI is published. Source now contains an explicitly
+configuration-gated `/internal` applicant/reviewer workspace plus a separate,
+opt-in loopback synthetic rehearsal. See [local UAT and auth gates](apps/web/README.md).
+The public preview remains closed and contains no forms. Intake defaults to disabled with a
 blank consent version and zero retention; the administrator group has no
 members. This code has not been deployed to the already-existing development
 stack. Consent, eligibility verification, screening, retention and escalation
@@ -77,6 +80,29 @@ the application from the reviewer queue. Stale versions return 409; this is not
 mentor offboarding or revocation of an approved application. Withdrawal emits
 no mentor-approval event. Existing applicants can read or withdraw even while
 new intake is closed. These endpoints remain source-only, not deployed.
+
+## Local-only integration and synthetic UI checks
+
+The opt-in UI rehearsal is documented in [apps/web/README.md](apps/web/README.md):
+`npm run dev:uat --workspace @rct/community-web`, then
+`http://127.0.0.1:5185/internal`. It is a client-side simulation, **not**
+Cognito/DynamoDB integration, and opens no real enrollment or safeguarding flow.
+
+The separate backend check uses **real DynamoDB Local transactions**, but no
+Cognito or live AWS services. Start DynamoDB Local on loopback port 8000, then:
+
+```sh
+DYNAMODB_ENDPOINT=http://127.0.0.1:8000 node --test apps/api/src/applications.integration.ts
+```
+
+The check rejects non-loopback endpoints, supplies explicit fake `local` /
+`local` credentials, creates a uniquely named synthetic test table, and deletes
+it afterward. Never provide real AWS credentials or an AWS endpoint. It covers
+idempotent submission, owner privacy, concurrent withdrawal, expiry before TTL,
+eligibility/screening and mentor approval with one sanitized transactional
+outbox record. This does not publish events, validate Cognito, or activate a
+pilot. The parent-run hosted feature CI validated five checks with zero failures
+and zero skips; no local Docker/JVM integration execution is claimed.
 
 ## Legacy development commands (historical)
 

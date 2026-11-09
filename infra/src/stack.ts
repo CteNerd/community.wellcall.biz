@@ -72,6 +72,11 @@ export class ApplicationStack extends Stack {
       subjectAlternativeNames: config.apiDomain ? [config.apiDomain] : [],
       validation: acm.CertificateValidation.fromDns(zone),
     }) : undefined;
+    const internalRoute = !production ? new cloudfront.Function(this, "InternalWorkspaceRoute", {
+      code: cloudfront.FunctionCode.fromInline(
+        'function handler(event) { var request = event.request; if ((request.method === "GET" || request.method === "HEAD") && (request.uri === "/internal" || request.uri === "/internal/")) request.uri = "/index.html"; return request; }',
+      ),
+    }) : undefined;
     const distribution = new cloudfront.Distribution(this, "Web", {
       defaultRootObject: "index.html",
       defaultBehavior: {
@@ -79,6 +84,9 @@ export class ApplicationStack extends Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
         compress: true,
+        ...(internalRoute ? { functionAssociations: [{
+          function: internalRoute, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+        }] } : {}),
       },
       ...(certificate ? {
         domainNames: [config.webDomain], certificate,
@@ -108,10 +116,20 @@ export class ApplicationStack extends Stack {
       authFlows: { userSrp: true },
       oAuth: {
         flows: { authorizationCodeGrant: true },
-        callbackUrls: [`${webOrigin}/auth/callback`],
-        logoutUrls: [webOrigin],
+        callbackUrls: [`${webOrigin}/${production ? "auth/callback" : "internal"}`],
+        logoutUrls: [production ? webOrigin : `${webOrigin}/`],
+        ...(!production ? { scopes: [cognito.OAuthScope.OPENID] } : {}),
       },
     });
+    if (!production) {
+      const hostedLogin = pool.addDomain("DevelopmentHostedLogin", {
+        cognitoDomain: { domainPrefix: `${config.prefix}-${config.account}` },
+      });
+      new CfnOutput(this, "DevelopmentOAuthOrigin", { value: hostedLogin.baseUrl() });
+      new CfnOutput(this, "DevelopmentAuthIssuer", { value: pool.userPoolProviderUrl });
+      new CfnOutput(this, "DevelopmentAuthRedirectUri", { value: `${webOrigin}/internal` });
+      new CfnOutput(this, "DevelopmentAuthLogoutUri", { value: `${webOrigin}/` });
+    }
     if (!production) {
       const publisherPolicy = new iam.ManagedPolicy(this, "WebPublishPolicy", {
         description: "Development web artifacts only; no infrastructure, identity or application data mutations",

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { configuration } from "./config.ts";
@@ -70,6 +71,32 @@ test("development foundation has private hosting, no DNS writes, and protected i
   template.hasResourceProperties("AWS::Cognito::UserPool", {
     AdminCreateUserConfig: { AllowAdminCreateUserOnly: true }, MfaConfiguration: "ON",
   });
+  template.hasResourceProperties("AWS::Cognito::UserPoolClient", {
+    GenerateSecret: false, AllowedOAuthFlows: ["code"], AllowedOAuthScopes: ["openid"],
+    CallbackURLs: Match.arrayWith([Match.objectLike({ "Fn::Join": Match.anyValue() })]),
+  });
+  template.hasResourceProperties("AWS::Cognito::UserPoolDomain", {
+    Domain: "rct-dotcom-development-123456789012",
+  });
+  template.resourceCountIs("AWS::Cognito::UserPoolUser", 0);
+  template.resourceCountIs("AWS::Cognito::UserPoolUserToGroupAttachment", 0);
+  template.resourceCountIs("AWS::CloudFront::Function", 1);
+  const distribution = JSON.stringify(template.findResources("AWS::CloudFront::Distribution"));
+  assert.match(distribution, /viewer-request/);
+  assert.match(JSON.stringify(template.findResources("AWS::Cognito::UserPoolClient")), /\/internal/);
+  const rewriteCode = Object.values(template.findResources("AWS::CloudFront::Function"))[0]?.Properties.FunctionCode;
+  assert.equal(typeof rewriteCode, "string");
+  const rewrite = runInNewContext(`${rewriteCode}; handler`) as (event: { request: object }) => { uri: string; querystring: object };
+  for (const [method, uri, expected] of [
+    ["GET", "/internal", "/index.html"], ["HEAD", "/internal/", "/index.html"],
+    ["POST", "/internal", "/internal"], ["GET", "/unknown", "/unknown"],
+    ["GET", "/assets/missing.js", "/assets/missing.js"],
+  ]) {
+    const querystring = { state: { value: "unchanged" } };
+    const result = rewrite({ request: { method, uri, querystring } });
+    assert.equal(result.uri, expected);
+    assert.equal(result.querystring, querystring);
+  }
   template.hasResourceProperties("AWS::Cognito::UserPoolGroup", {
     GroupName: "CommunityAdministrators", UserPoolId: { Ref: poolId },
   });
@@ -110,6 +137,9 @@ test("production records and identities are retained with PITR and deletion prot
   });
   template.hasResource("AWS::Cognito::UserPool", { DeletionPolicy: "Retain" });
   template.resourceCountIs("AWS::IAM::ManagedPolicy", 0);
+  template.resourceCountIs("AWS::Cognito::UserPoolDomain", 0);
+  template.resourceCountIs("AWS::CloudFront::Function", 0);
+  assert.doesNotMatch(JSON.stringify(template.findResources("AWS::Cognito::UserPoolClient")), /\/internal/);
 });
 
 test("development web publisher has exact OIDC trust and a matching artifact-only permissions boundary", () => {

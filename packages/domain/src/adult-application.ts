@@ -1,5 +1,3 @@
-import { randomUUID } from "node:crypto";
-
 export type AdultApplication = {
   applicationId: string;
   kind: "participant" | "mentor";
@@ -108,10 +106,10 @@ export function decideAdultApplication(
       source: "rct.dotcom",
       "detail-type": "dotcom.mentor.approved.v1",
       detail: {
-        eventId: randomUUID(),
+        eventId: globalThis.crypto.randomUUID(),
         schemaVersion: 1,
         occurredAt,
-        correlationId: randomUUID(),
+        correlationId: globalThis.crypto.randomUUID(),
         domain: "dotcom",
         data: { reportingMonth: occurredAt.slice(0, 7), mentorCount: 1 },
       },
