@@ -64,36 +64,54 @@ export class ApplicationStack extends Stack {
       enforceSSL: true,
       removalPolicy: RemovalPolicy.RETAIN,
     });
-    const zone = customDomains ? route53.HostedZone.fromHostedZoneAttributes(this, "ExistingZone", {
+    const zone = customDomains && !config.importedCertificateArn ? route53.HostedZone.fromHostedZoneAttributes(this, "ExistingZone", {
       hostedZoneId: config.hostedZoneId, zoneName: config.hostedZoneName,
     }) : undefined;
-    const certificate = zone ? new acm.Certificate(this, "WebCertificate", {
+    const certificate = config.importedCertificateArn
+      ? acm.Certificate.fromCertificateArn(this, "ExistingDevelopmentWebCertificate", config.importedCertificateArn)
+      : zone ? new acm.Certificate(this, "WebCertificate", {
       domainName: config.webDomain,
       subjectAlternativeNames: config.apiDomain ? [config.apiDomain] : [],
       validation: acm.CertificateValidation.fromDns(zone),
     }) : undefined;
-    const internalRoute = !production ? new cloudfront.Function(this, "InternalWorkspaceRoute", {
+    const internalRoute = new cloudfront.Function(this, "InternalWorkspaceRoute", {
       code: cloudfront.FunctionCode.fromInline(
         'function handler(event) { var request = event.request; if ((request.method === "GET" || request.method === "HEAD") && (request.uri === "/internal" || request.uri === "/internal/")) request.uri = "/index.html"; return request; }',
       ),
-    }) : undefined;
+    });
+    const privateHeaders = new cloudfront.ResponseHeadersPolicy(this, "PrivateWebHeaders", {
+      securityHeadersBehavior: {
+        contentTypeOptions: { override: true },
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+        strictTransportSecurity: { accessControlMaxAge: Duration.days(365), includeSubdomains: true, override: true },
+        referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.NO_REFERRER, override: true },
+      },
+      customHeadersBehavior: { customHeaders: [{ header: "X-Robots-Tag", value: "noindex, nofollow", override: true }] },
+    });
+    const origin = S3BucketOrigin.withOriginAccessControl(bucket);
+    const internalBehavior: cloudfront.BehaviorOptions = {
+      origin, viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      responseHeadersPolicy: privateHeaders, compress: true,
+      functionAssociations: [{ function: internalRoute, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
+    };
     const distribution = new cloudfront.Distribution(this, "Web", {
       defaultRootObject: "index.html",
       defaultBehavior: {
-        origin: S3BucketOrigin.withOriginAccessControl(bucket),
+        origin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
+        responseHeadersPolicy: production ? cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS : privateHeaders,
         compress: true,
         ...(internalRoute ? { functionAssociations: [{
           function: internalRoute, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
         }] } : {}),
       },
+      additionalBehaviors: { "/internal": internalBehavior, "/internal/": internalBehavior },
       ...(certificate ? {
         domainNames: [config.webDomain], certificate,
         minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       } : {}),
     });
-    const webOrigin = customDomains ? `https://${config.webDomain}` : `https://${distribution.distributionDomainName}`;
+    const webOrigin = certificate ? `https://${config.webDomain}` : `https://${distribution.distributionDomainName}`;
     if (zone) {
       const target = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
       new route53.ARecord(this, "WebAlias", { zone, recordName: config.webDomain, target });
@@ -116,23 +134,29 @@ export class ApplicationStack extends Stack {
       authFlows: { userSrp: true },
       oAuth: {
         flows: { authorizationCodeGrant: true },
-        callbackUrls: [`${webOrigin}/${production ? "auth/callback" : "internal"}`],
-        logoutUrls: [production ? webOrigin : `${webOrigin}/`],
-        ...(!production ? { scopes: [cognito.OAuthScope.OPENID] } : {}),
+        callbackUrls: [`${webOrigin}/internal`],
+        logoutUrls: [`${webOrigin}/`],
+        scopes: [cognito.OAuthScope.OPENID],
       },
     });
-    if (!production) {
-      const hostedLogin = pool.addDomain("DevelopmentHostedLogin", {
+    {
+      const hostedLogin = pool.addDomain(production ? "ProductionHostedLogin" : "DevelopmentHostedLogin", {
         cognitoDomain: { domainPrefix: `${config.prefix}-${config.account}` },
       });
-      new CfnOutput(this, "DevelopmentOAuthOrigin", { value: hostedLogin.baseUrl() });
-      new CfnOutput(this, "DevelopmentAuthIssuer", { value: pool.userPoolProviderUrl });
-      new CfnOutput(this, "DevelopmentAuthRedirectUri", { value: `${webOrigin}/internal` });
-      new CfnOutput(this, "DevelopmentAuthLogoutUri", { value: `${webOrigin}/` });
+      if (!production) {
+        new CfnOutput(this, "DevelopmentOAuthOrigin", { value: hostedLogin.baseUrl() });
+        new CfnOutput(this, "DevelopmentAuthIssuer", { value: pool.userPoolProviderUrl });
+        new CfnOutput(this, "DevelopmentAuthRedirectUri", { value: `${webOrigin}/internal` });
+        new CfnOutput(this, "DevelopmentAuthLogoutUri", { value: `${webOrigin}/` });
+      }
+      new CfnOutput(this, "OAuthOrigin", { value: hostedLogin.baseUrl() });
+      new CfnOutput(this, "AuthIssuer", { value: pool.userPoolProviderUrl });
+      new CfnOutput(this, "AuthRedirectUri", { value: `${webOrigin}/internal` });
+      new CfnOutput(this, "AuthLogoutUri", { value: `${webOrigin}/` });
     }
-    if (!production) {
+    {
       const publisherPolicy = new iam.ManagedPolicy(this, "WebPublishPolicy", {
-        description: "Development web artifacts only; no infrastructure, identity or application data mutations",
+        description: "Web artifacts only; no infrastructure, identity or application data mutations",
         statements: [
           new iam.PolicyStatement({
             actions: ["s3:GetBucketLocation", "s3:GetBucketPublicAccessBlock", "s3:GetBucketPolicyStatus", "s3:ListBucket"],
@@ -158,11 +182,11 @@ export class ApplicationStack extends Stack {
       );
       const publisherRole = new iam.Role(this, "WebPublisher", {
         roleName: `${config.prefix}-web-publish`,
-        path: "/rct/dotcom/development/",
+        path: `/rct/dotcom/${config.environment}/`,
         assumedBy: new iam.WebIdentityPrincipal(provider.openIdConnectProviderArn, {
           StringEquals: {
             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-            "token.actions.githubusercontent.com:sub": "repo:CteNerd/community.wellcall.biz:environment:development",
+            "token.actions.githubusercontent.com:sub": `repo:CteNerd/community.wellcall.biz:environment:${config.environment}`,
           },
         }),
         managedPolicies: [publisherPolicy],
@@ -185,6 +209,7 @@ export class ApplicationStack extends Stack {
         "ForAllValues:StringLike": {
           "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "MENTOR_APPROVAL#*"],
         },
+        Null: { "dynamodb:LeadingKeys": "false" },
       },
     }));
     role.addToPolicy(new iam.PolicyStatement({
@@ -197,7 +222,7 @@ export class ApplicationStack extends Stack {
       conditions: {
         "ForAnyValue:StringEquals": { "dynamodb:EnclosingOperation": ["TransactWriteItems"] },
         "ForAllValues:StringLike": {
-          "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "MENTOR_APPROVAL#*", "OUTBOX#*"],
+          "dynamodb:LeadingKeys": ["APPLICATION#*", "IDEMPOTENCY#*", "MENTOR_APPROVAL#*", "OUTBOX#????????-????-????-????-????????????"],
         },
         Null: { "dynamodb:LeadingKeys": "false" },
       },
@@ -290,12 +315,24 @@ export class ApplicationStack extends Stack {
       resources: [core.tableArn],
       conditions: {
         "ForAllValues:StringEquals": { "dynamodb:LeadingKeys": ["OUTBOX#RECONCILIATION"] },
+        Null: { "dynamodb:LeadingKeys": "false" },
       },
     }));
     publisherRole.addToPolicy(new iam.PolicyStatement({
       actions: ["dynamodb:UpdateItem"],
       resources: [core.tableArn],
-      conditions: { "ForAllValues:StringLike": { "dynamodb:LeadingKeys": ["OUTBOX#*"] } },
+      conditions: {
+        "ForAllValues:StringLike": { "dynamodb:LeadingKeys": ["OUTBOX#????????-????-????-????-????????????"] },
+        Null: { "dynamodb:LeadingKeys": "false" },
+      },
+    }));
+    publisherRole.addToPolicy(new iam.PolicyStatement({
+      actions: ["dynamodb:UpdateItem"],
+      resources: [core.tableArn],
+      conditions: {
+        "ForAllValues:StringEquals": { "dynamodb:LeadingKeys": ["OUTBOX#RECONCILIATION"] },
+        Null: { "dynamodb:LeadingKeys": "false" },
+      },
     }));
     publisherRole.addToPolicy(new iam.PolicyStatement({
       actions: ["dynamodb:Query"],
