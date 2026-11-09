@@ -247,9 +247,12 @@ npx cdk synth -c environment=development -c account=425061472162 -c customDomain
 npx cdk synth -c environment=production -c account=425061472162 -c customDomains=true -c brandLaunchApproved=true --output cdk.out/review-production --quiet
 
 # AWS writes: parent only, after reviewing the isolated asset destinations.
-npx cdk publish-assets --app cdk.out/review-development rct-dotcom-development-foundation
-npx cdk publish-assets --app cdk.out/review-production rct-dotcom-production-foundation
+npx cdk publish-assets --unstable=publish-assets --app cdk.out/review-development rct-dotcom-development-foundation
+npx cdk publish-assets --unstable=publish-assets --app cdk.out/review-production rct-dotcom-production-foundation
 ```
+
+The installed CDK CLI requires the explicit `--unstable=publish-assets` opt-in
+for asset publishing.
 
 Asset destinations are fixed by environment/account/region:
 
