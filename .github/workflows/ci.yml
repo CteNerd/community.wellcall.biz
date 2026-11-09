@@ -28,3 +28,30 @@ jobs:
       - run: npm audit --workspaces --include-workspace-root=false --audit-level=high
       - run: npm run cdk:synth:development
       - run: npm run cdk:synth:production
+  application-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:3.1.0@sha256:7ef4a2c45b58c2901e70a4f28e0953a422c2c631baaaf5e2c15e0805740c7752
+        ports:
+          - 127.0.0.1:8000:8000
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm install --global npm@11.6.2 --no-audit --no-fund
+      - run: npm ci --workspaces --include-workspace-root=false --no-audit --no-fund
+      - name: Wait for DynamoDB Local
+        run: |
+          for attempt in {1..30}; do
+            if curl --silent --output /dev/null http://127.0.0.1:8000; then exit 0; fi
+            sleep 1
+          done
+          echo "::error::DynamoDB Local did not become ready"
+          exit 1
+      - run: node --test apps/api/src/applications.integration.ts
+        env:
+          DYNAMODB_ENDPOINT: http://127.0.0.1:8000
