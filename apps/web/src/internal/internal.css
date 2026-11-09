@@ -1,0 +1,28 @@
+html:has(.internal-shell) { scroll-behavior: auto; scroll-padding-top: 0; }
+.internal-shell { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; color: #17231f; font-family: system-ui, sans-serif; }
+.internal-shell h1 { font-size: clamp(2rem, 6vw, 3.5rem); line-height: 1.1; }
+.internal-shell h2 { font-size: 1.7rem; margin-top: 32px; }
+.internal-shell p { line-height: 1.6; }
+.internal-shell a { color: #164e3e; display: inline-block; padding: 12px; text-decoration: underline; }
+.internal-shell button { min-height: 44px; padding: 10px 16px; margin: 6px; background: #183e32; color: white; border: 2px solid transparent; border-radius: 6px; font: inherit; cursor: pointer; }
+.internal-shell button:disabled { background: #596960; cursor: not-allowed; opacity: .65; }
+.internal-shell button[aria-pressed="true"] { border-color: #e8ff74; }
+.internal-shell :focus-visible { outline: 3px solid #ae4e13; outline-offset: 3px; }
+.internal-shell form, .internal-shell article, .internal-notice { border: 1px solid #88998e; border-radius: 10px; padding: 20px; margin: 16px 0; }
+.internal-shell label { display: grid; gap: 8px; margin: 16px 0; }
+.internal-shell input, .internal-shell select { padding: 12px; border: 1px solid #718278; border-radius: 5px; background: white; color: #17231f; font: inherit; width: 100%; min-width: 0; }
+.internal-shell .internal-check { display: flex; align-items: center; }
+.internal-check input { width: 20px; height: 20px; flex-shrink: 0; }
+.internal-shell dl { display: grid; grid-template-columns: minmax(100px, 1fr) 3fr; gap: 10px; }
+.internal-shell dt { font-weight: 700; }
+.internal-shell dd { margin: 0; overflow-wrap: anywhere; }
+.internal-shell fieldset { display: flex; flex-wrap: wrap; border: 1px solid #718278; padding: 14px; }
+.internal-queue { list-style: none; padding: 0; }
+.internal-queue button { width: calc(100% - 12px); text-align: left; overflow-wrap: anywhere; }
+.internal-notice { background: #fff1bd; border: 3px solid #ae4e13; }
+@media (max-width: 600px) {
+  .internal-shell { padding: 20px 12px 50px; }
+  .internal-shell form, .internal-shell article { padding: 14px; }
+  .internal-shell dl { grid-template-columns: 1fr; }
+  .internal-shell dd { margin-bottom: 12px; }
+}

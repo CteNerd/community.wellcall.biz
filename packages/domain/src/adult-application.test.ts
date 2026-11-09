@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ApplicationReviewError, decideAdultApplication, type AdultApplication } from "./adult-application.ts";
+import {
+  ApplicationReviewError, decideAdultApplication, reviewAdultApplication, withdrawAdultApplication, type AdultApplication,
+} from "./adult-application.ts";
 
 const now = new Date("2026-11-05T16:00:00.000Z");
 const consentVersion = "adult-pilot-2026-01";
@@ -41,6 +43,18 @@ test("mentor approval requires verified adult eligibility, current consent and c
   ), /Completed mentor screening/);
 });
 
+test("withdrawal closes only pending applications without approving or changing screening", () => {
+  const pending = application({ mentorScreening: "pending" });
+  const withdrawn = withdrawAdultApplication(pending, now);
+  assert.equal(withdrawn.status, "withdrawn");
+  assert.equal(withdrawn.withdrawnAt, now.toISOString());
+  assert.equal(withdrawn.mentorScreening, "pending");
+  assert.equal(pending.status, "under_review");
+  for (const status of ["approved", "rejected", "withdrawn"] as const) {
+    assert.throws(() => withdrawAdultApplication(application({ status }), now), /under review/);
+  }
+});
+
 test("approved adult mentor produces only an aggregate reporting event", () => {
   const result = decideAdultApplication(application(), "approve", "reviewer-2", consentVersion, now);
   assert.equal(result.application.status, "approved");
@@ -71,4 +85,31 @@ test("rejection is reviewable without approval prerequisites, while terminal dec
   assert.throws(() => decideAdultApplication(
     rejected.application, "approve", "reviewer-2", consentVersion, now,
   ), /under review/);
+});
+
+test("review actions capture reviewer audit fields and reject duplicate or inapplicable actions", () => {
+  const unverified = application({ adultEligibility: { status: "unverified" } });
+  const verified = reviewAdultApplication(
+    unverified, { type: "verify_adult_eligibility" }, "reviewer-2", consentVersion, now,
+  ).application;
+  assert.deepEqual(verified.adultEligibility, {
+    status: "verified", verifiedBy: "reviewer-2", verifiedAt: now.toISOString(),
+  });
+  assert.throws(() => reviewAdultApplication(
+    verified, { type: "verify_adult_eligibility" }, "reviewer-2", consentVersion, now,
+  ), /verified once/);
+
+  const screened = reviewAdultApplication(
+    application({ mentorScreening: "pending" }),
+    { type: "record_mentor_screening", result: "passed" },
+    "reviewer-2", consentVersion, now,
+  ).application;
+  assert.equal(screened.mentorScreening, "passed");
+  assert.equal(screened.screeningBy, "reviewer-2");
+  assert.equal(screened.screeningAt, now.toISOString());
+  assert.throws(() => reviewAdultApplication(
+    application({ kind: "participant", mentorScreening: "not_required" }),
+    { type: "record_mentor_screening", result: "passed" },
+    "reviewer-2", consentVersion, now,
+  ), /pending mentor screening/);
 });

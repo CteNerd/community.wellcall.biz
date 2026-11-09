@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:uat": "VITE_COMMUNITY_SYNTHETIC_UAT=true vite --host 127.0.0.1 --port 5185 --strictPort",
     "check": "tsc --noEmit && vitest run",
-    "build": "vite build"
+    "build": "vite build && node scripts/check-production.mjs"
   },
   "dependencies": {
     "react": "19.3.1",

@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": { "check": "tsc --noEmit && node --test src/*.test.ts" },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1162.0",
+    "@aws-sdk/client-eventbridge": "3.1162.0",
+    "@aws-sdk/lib-dynamodb": "3.1162.0"
+  },
   "devDependencies": {
     "@types/aws-lambda": "8.10.164",
     "@types/node": "24.19.2",
