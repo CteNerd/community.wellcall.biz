@@ -28,13 +28,13 @@ if (presentation.production) {
     throw new Error("Approved production metadata must be public and use the exact production canonical origin");
   }
   for (const tag of [
-    `<meta property="og:image" content="${presentation.origin}/assets/social-card-4cfaaa052494.jpg" />`,
-    `<meta name="twitter:image" content="${presentation.origin}/assets/social-card-4cfaaa052494.jpg" />`,
+    `<meta property="og:image" content="${presentation.origin}/assets/cut-block-social-7286a063c885.jpg" />`,
+    `<meta name="twitter:image" content="${presentation.origin}/assets/cut-block-social-7286a063c885.jpg" />`,
     '<meta name="twitter:card" content="summary_large_image" />',
     '<meta property="og:image:width" content="1200" />',
     '<meta property="og:image:height" content="630" />',
   ]) assert.ok(html.includes(tag), `Production social metadata missing: ${tag}`);
-  const image = await readFile(resolve(directory, "assets/social-card-4cfaaa052494.jpg"));
+  const image = await readFile(resolve(directory, "assets/cut-block-social-7286a063c885.jpg"));
   assert.equal(image.readUInt16BE(0), 0xffd8, "Social preview must be a published JPEG");
 } else if (!html.includes('<meta name="robots" content="noindex, nofollow" />') || html.includes('rel="canonical"')) {
   throw new Error("Default preview metadata must remain noindex without a production canonical URL");
