@@ -279,6 +279,15 @@ h1 em {
   font-style: normal;
 }
 
+.hero-brand-meaning {
+  max-width: 35rem;
+  margin: -0.3rem 0 1rem;
+  color: #5e775f;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
 .hero-deck {
   max-width: 36rem;
   margin-bottom: 0;
@@ -331,6 +340,26 @@ h1 em {
   color: #6a746d;
   font-size: 0.64rem;
   line-height: 1.7;
+}
+
+.hero-status {
+  display: flex;
+  max-width: 35rem;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin: 1.35rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #d5dccd;
+  color: #435749;
+  background: #edf0e7;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  line-height: 1.6;
+}
+
+.hero-status .status-dot {
+  margin-top: 0.3rem;
+  background: #8d783a;
 }
 
 .hero-art {
@@ -592,8 +621,8 @@ h1 em {
 
 .pathway-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
 }
 
 .pathway-card {
@@ -657,6 +686,14 @@ h1 em {
   line-height: 1.7;
 }
 
+.journey-card {
+  min-height: 22rem;
+}
+
+.journey-card .text-link {
+  margin-top: auto;
+}
+
 .pathway-status {
   display: flex;
   align-items: center;
@@ -684,22 +721,53 @@ h1 em {
 }
 
 .approach {
-  display: grid;
-  grid-template-columns: minmax(14rem, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(3rem, 9vw, 10rem);
   padding-block: 7rem;
 }
 
 .approach-intro h2 {
-  max-width: 10ch;
+  max-width: 18ch;
   margin-top: 1rem;
 }
 
 .approach-intro > p:not(.section-label) {
-  max-width: 24rem;
+  max-width: 48rem;
   margin-bottom: 1.3rem;
   color: #566259;
   font-size: 0.92rem;
+}
+
+.journey-support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  margin-top: 2rem;
+}
+
+.journey-support {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  background: #fbfaf5;
+  scroll-margin-top: 2rem;
+}
+
+.journey-support h3 {
+  margin: 0.8rem 0 0.5rem;
+  font-size: 1.45rem;
+}
+
+.journey-support > p:last-child {
+  margin: 0;
+  color: #566259;
+  font-size: 0.84rem;
+}
+
+.experience-heading {
+  margin: 3rem 0 0.5rem;
+}
+
+.experience-heading h3 {
+  margin: 0.6rem 0 0;
+  font-size: 1.45rem;
 }
 
 .practice-list {
@@ -749,6 +817,23 @@ h1 em {
 .readiness-section {
   color: var(--white);
   background: var(--ink);
+}
+
+.future-vision {
+  padding-block: 4.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.future-vision h2 {
+  max-width: 18ch;
+  margin: 0.8rem 0;
+  font-size: clamp(2rem, 3.5vw, 3rem);
+}
+
+.future-vision > p:last-child {
+  max-width: 50rem;
+  margin-bottom: 0;
+  color: #566259;
 }
 
 .readiness-wrap {
@@ -1038,12 +1123,19 @@ h1 em {
   }
 
   .story,
-  .approach,
   .readiness-wrap,
   .faq {
     grid-template-columns: 1fr;
     gap: 2.5rem;
     padding-block: 4.5rem;
+  }
+
+  .approach {
+    padding-block: 4.5rem;
+  }
+
+  .journey-support-grid {
+    grid-template-columns: 1fr;
   }
 
   .story-aside {
