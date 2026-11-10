@@ -50,13 +50,16 @@ test("navigation links to the complete story, program, readiness, and FAQ sectio
   expect(screen.getAllByText(/^(planned adult pathway|future concept)$/i)).toHaveLength(3);
 });
 
-test("the guided-practice model and future readiness boundaries are explained", () => {
+test("the learner-led practice model and future readiness boundaries are explained", () => {
   render(<App />);
 
-  expect(screen.getByRole("heading", { name: "Start with a challenge" })).toBeDefined();
-  expect(screen.getByRole("heading", { name: "Make a game plan" })).toBeDefined();
-  expect(screen.getByRole("heading", { name: "Practice, then get feedback" })).toBeDefined();
-  expect(screen.getByRole("heading", { name: "Reflect and build forward" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Practice is the point." })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Choose a skill to stretch" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Build a small project" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Use feedback to revise" })).toBeDefined();
+  expect(screen.getByRole("heading", { name: "Choose what to try next" })).toBeDefined();
+  expect(document.body.textContent).not.toMatch(/game plan/i);
+  expect(screen.getByText(/not programs available today/i)).toBeDefined();
   expect(screen.getByText(/Enrollment is not open/)).toBeDefined();
   expect(screen.getByText(/Youth participation before safeguarding and guardian processes are reviewed/i)).toBeDefined();
   expect(screen.getByText(/no active athletics, fitness, facility, or training service/i)).toBeDefined();
