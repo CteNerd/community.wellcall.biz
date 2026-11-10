@@ -14,12 +14,18 @@ test("immutable candidate binds exact bytes, file inventory, reviewed SHA and ma
   const html = '<title>CUT BLOCK</title><link rel="canonical" href="https://cutblock.org/">';
   writeFileSync(resolve(directory, "index.html"), html);
   writeFileSync(resolve(directory, "assets/index-hash.js"), "closed-public-brand");
+  const imagePath = resolve(directory, "assets/social-card-hash.jpg");
+  const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  writeFileSync(imagePath, image);
   const value = createCandidate(directory, sha, "123-1");
   const serialized = `${JSON.stringify(value, null, 2)}\n`;
   const manifestPath = resolve(root, "manifest.json");
   writeFileSync(manifestPath, serialized);
   const hash = digest(serialized);
   assert.deepEqual(verifyCandidate(directory, manifestPath, hash, sha), value);
+  writeFileSync(imagePath, Buffer.from([0xff, 0xd8, 0x00, 0xd9]));
+  assert.throws(() => verifyCandidate(directory, manifestPath, hash, sha), /digest/);
+  writeFileSync(imagePath, image);
   assert.throws(() => verifyCandidate(directory, manifestPath, hash, "b".repeat(40)), /provenance/);
   assert.throws(() => verifyCandidate(directory, manifestPath, "0".repeat(64), sha), /digest/);
   writeFileSync(resolve(directory, "assets/index-hash.js"), "tampered");

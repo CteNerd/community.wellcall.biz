@@ -41,6 +41,15 @@ does not inject auth, readiness or intake settings. The same candidate can be
 staged on development only after its CloudFront noindex headers are deployed.
 Both environments return noindex headers for the exact internal entry points.
 
+Approved production presentation includes the business line, 281-692-7522, in
+the footer; this does not open enrollment or applications. The initial HTML
+includes Open Graph and Twitter large-image metadata using the generated
+1200×630 `public/assets/social-card-4cfaaa052494.jpg` illustration, shared with
+Third Down Technologies and published with the Vite web candidate as an
+immutable, content-addressed asset. When replacing the artwork, update the
+filename hash and metadata together. Default previews do
+not publish the business line or production social metadata.
+
 ## Source-only internal workspace
 
 `/internal` is closed by default, with no public navigation link or application

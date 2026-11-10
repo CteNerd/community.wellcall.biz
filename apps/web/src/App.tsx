@@ -377,6 +377,7 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
             </span>
           </a>
           <p>Build with purpose. Learn by doing. Grow together.</p>
+          {production && <p>Business line: <a href="tel:+12816927522">281-692-7522</a></p>}
           <a className="footer-top" href="#top">Back to top ↑</a>
         </div>
         <div className="footer-bottom">
