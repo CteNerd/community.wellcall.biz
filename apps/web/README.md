@@ -44,8 +44,11 @@ Both environments return noindex headers for the exact internal entry points.
 Approved production presentation includes the business line, 281-692-7522, in
 the footer; this does not open enrollment or applications. The initial HTML
 includes Open Graph and Twitter large-image metadata using the generated
-1200×630 `public/assets/social-card-4cfaaa052494.jpg` illustration, shared with
-Third Down Technologies and published with the Vite web candidate as an
+1200×630 `public/assets/cut-block-social-7286a063c885.jpg` card featuring CUT BLOCK's
+name, Build. Learn. Grow. tagline, brand colors, and an aspirational illustration
+of adult mentorship and hands-on learning (not a photo of an operating program).
+It is distinct from Third Down Technologies' strategy artwork and is published
+with the Vite web candidate as an
 immutable, content-addressed asset. When replacing the artwork, update the
 filename hash and metadata together. Default previews do
 not publish the business line or production social metadata.
