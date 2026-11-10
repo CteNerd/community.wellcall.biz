@@ -20,6 +20,7 @@ test("public production requires explicit approval, carries real branding and ke
   expect(screen.getByText(/no active athletics, fitness, facility, or training service/i)).toBeDefined();
   expect(document.querySelector("form")).toBeNull();
   expect(document.body.textContent).toMatch(/no claim here about legal structure/);
+  expect(screen.getByRole("link", { name: "281-692-7522" }).getAttribute("href")).toBe("tel:+12816927522");
 });
 
 test("the approved meaning and provisional brand are prominent", () => {

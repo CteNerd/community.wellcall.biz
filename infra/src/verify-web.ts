@@ -29,7 +29,8 @@ for (const file of manifest.files) {
     throw new Error(`Published bytes do not match: ${file.path}`);
   }
   const expectedType = file.path.endsWith(".js") ? /^(text|application)\/javascript(?:;|$)/
-    : file.path.endsWith(".css") ? /^text\/css(?:;|$)/ : /^text\/html(?:;|$)/;
+    : file.path.endsWith(".css") ? /^text\/css(?:;|$)/
+    : file.path.endsWith(".jpg") ? /^image\/jpeg(?:;|$)/ : /^text\/html(?:;|$)/;
   if (!expectedType.test(response.headers.get("content-type") ?? "")) throw new Error(`Incorrect content type: ${file.path}`);
   if (target.environment === "development" && !response.headers.get("x-robots-tag")?.includes("noindex")) {
     throw new Error("Development staging must suppress indexing through response headers");

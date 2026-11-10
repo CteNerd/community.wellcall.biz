@@ -65,6 +65,7 @@ for asset in "$candidate"/assets/*; do
   case "$name" in
     *.js) content_type=text/javascript ;;
     *.css) content_type=text/css ;;
+    *.jpg) content_type=image/jpeg ;;
     *) echo "Unsupported release asset type: $name" >&2; exit 1 ;;
   esac
   if ! aws s3api put-object --bucket "$PREVIEW_BUCKET" --key "assets/$name" --body "$asset" \
