@@ -35,27 +35,27 @@ const pathways = [
 const practiceSteps = [
   {
     number: "01",
-    title: "Start with a challenge",
+    title: "Choose a skill to stretch",
     description:
-      "Name what you want to learn or make. Begin with curiosity, not a claim that one method fits everyone.",
+      "Name something you want to understand or make. Start with a real question, not a track chosen for you.",
   },
   {
     number: "02",
-    title: "Make a game plan",
+    title: "Build a small project",
     description:
-      "Choose a useful next step, the right tools for the task, and a way to notice what is working.",
+      "Turn that question into something you can test. Choose tools that fit the task and keep the result small enough to finish.",
   },
   {
     number: "03",
-    title: "Practice, then get feedback",
+    title: "Use feedback to revise",
     description:
-      "Work through the challenge with guidance. Ask questions, test assumptions, and adjust when the evidence says to.",
+      "Show what you made, ask questions, and decide what to change. Feedback should explain the work—not label the person.",
   },
   {
     number: "04",
-    title: "Reflect and build forward",
+    title: "Choose what to try next",
     description:
-      "Capture what you learned and decide on a realistic next step. Progress is practice—not a promised outcome.",
+      "Notice what you can do now and what still needs practice. Set one realistic next challenge; progress is personal, not promised.",
   },
 ];
 
@@ -146,8 +146,9 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
             <h1 id="hero-title">{production ? brand.shortName : `${brand.meaning}.`}</h1>
             {production && <p className="story-lead">{brand.meaning}</p>}
             <p className="hero-deck">
-              {brand.tagline} Grow with purpose—through hands-on learning,
-              thoughtful mentorship, and the discipline to keep getting better.
+              {brand.tagline} The first planned pathway pairs practical tech
+              projects with adult mentorship—learn by making, ask questions,
+              and revise with guidance.
             </p>
             <div className="hero-actions">
               <a className="button button-dark" href="#approach">
@@ -223,16 +224,16 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
               CUT BLOCK means <span>{brand.meaning}.</span>
             </h2>
             <p className="story-lead">
-              It is the belief that growth is built—not handed over. People
-              deserve room to learn, meaningful challenges, honest guidance,
-              and the chance to turn effort into a next step.
+              Skills develop when people build, test, share, and try again.
+              CUT BLOCK is being designed to make that practice meaningful
+              and supported.
             </p>
             <p>
-              CUT BLOCK is founder-led in its early design, with a mission that
-              connects technical learning and mentorship today to performance
-              and athletics as a possible future direction. The common thread
-              is deliberate practice: bring curiosity, choose tools with care,
-              learn from feedback, and keep building.
+              The first planned offering is an adult technology and mentorship
+              pilot. Performance and athletics are possible future directions,
+              not programs available today. Whatever the path, the aim is to
+              give people room to practice deliberately and choose what to try
+              next—not promise a job, placement, or specific result.
             </p>
             <p>
               “Competition” is about showing up with commitment and measuring
@@ -288,11 +289,11 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
         <section className="approach section-wrap" id="approach" aria-labelledby="approach-title">
           <div className="approach-intro">
             <SectionLabel>HOW WE THINK ABOUT PRACTICE</SectionLabel>
-            <h2 id="approach-title">Good growth has a game plan.</h2>
+            <h2 id="approach-title">Practice is the point.</h2>
             <p>
-              The intended model is guided, hands-on, and reflective. Start
-              small. Pay attention. Adjust with purpose. It is a design
-              principle for future programs—not a service currently underway.
+              A good session should leave a learner with something they tried,
+              feedback they can use, and one next challenge. This is a
+              future-program design principle—not a service currently underway.
             </p>
             <a className="text-link" href="#readiness">
               What readiness means <span aria-hidden="true">→</span>
