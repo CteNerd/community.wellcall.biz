@@ -63,10 +63,6 @@ test("navigation and footer use absolute links back to home-page anchors", () =>
     Mission: "/#mission",
     Pathways: "/pathways",
     Experience: "/experience",
-    Participate: "/#participate",
-    Collaborators: "/#ecosystem",
-    Readiness: "/#readiness",
-    FAQ: "/#faq",
   });
   expect(screen.getAllByRole("link", { name: /CUT BLOCK home/i }).every((link) => link.getAttribute("href") === "/")).toBe(true);
   expect(screen.getByRole("link", { name: /Back to home/i }).getAttribute("href")).toBe("/");

@@ -4,20 +4,23 @@ export type SitePage = "home" | "pathways" | "experience";
 
 type NavItem = { id: string; label: string; kind: "page" | "anchor" };
 
+/**
+ * The main nav only lists Mission, Pathways and Experience — the site's
+ * three top-level pillars. Participate, Collaborators, Readiness and FAQ are
+ * supporting sections on the home page, not destinations in their own
+ * right, so they're reached by scrolling, in-page links (hero CTA, header
+ * status pill, pathways teaser) or the footer, not the main nav.
+ */
 const navItems: NavItem[] = [
   { id: "mission", label: "Mission", kind: "anchor" },
   { id: "pathways", label: "Pathways", kind: "page" },
   { id: "experience", label: "Experience", kind: "page" },
-  { id: "participate", label: "Participate", kind: "anchor" },
-  { id: "ecosystem", label: "Collaborators", kind: "anchor" },
-  { id: "readiness", label: "Readiness", kind: "anchor" },
-  { id: "faq", label: "FAQ", kind: "anchor" },
 ];
 
 /**
- * Anchors (mission, participate, ecosystem, readiness, faq) only exist on the
- * home page; from another page they need an absolute "/#id" link. Pathways
- * and experience are their own routes everywhere.
+ * Anchors (currently just "mission") only exist on the home page; from
+ * another page they need an absolute "/#id" link. Pathways and experience
+ * are their own routes everywhere.
  */
 function hrefFor(item: NavItem, page: SitePage) {
   if (item.kind === "page") return `/${item.id}`;

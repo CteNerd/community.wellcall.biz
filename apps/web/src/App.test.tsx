@@ -51,10 +51,6 @@ test("navigation mixes home anchors with the pathways/experience pages, and all 
     Mission: "#mission",
     Pathways: "/pathways",
     Experience: "/experience",
-    Participate: "#participate",
-    Collaborators: "#ecosystem",
-    Readiness: "#readiness",
-    FAQ: "#faq",
   });
   for (const [label, href] of Object.entries(hrefByLabel)) {
     if (href?.startsWith("#")) expect(document.getElementById(href.slice(1)), label).not.toBeNull();
