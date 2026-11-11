@@ -279,15 +279,6 @@ h1 em {
   font-style: normal;
 }
 
-.hero-brand-meaning {
-  max-width: 35rem;
-  margin: -0.3rem 0 1rem;
-  color: #586e5e;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  line-height: 1.7;
-}
-
 .hero-deck {
   max-width: 36rem;
   margin-bottom: 0;
@@ -753,11 +744,6 @@ h1 em {
 
 .pathway-teaser .text-link {
   margin-top: auto;
-}
-
-.legacy-anchor {
-  display: block;
-  height: 0;
 }
 
 .status-chip {

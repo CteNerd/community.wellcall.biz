@@ -138,7 +138,6 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
               A development-minded community
             </p>
             <h1 id="hero-title">Potential shouldn't depend on who you know.</h1>
-            <p className="hero-brand-meaning">{brand.meaning}</p>
             <p className="hero-deck">
               We're building pathways for tomorrow's professionals—through
               practical technology work and mentorship in the office, and an
@@ -207,8 +206,7 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
         </div>
 
         <section className="story section-wrap" id="mission" aria-labelledby="mission-title">
-          <span id="story" className="legacy-anchor" aria-hidden="true" />
-          <div className="story-aside">
+          <div className="story-aside" id="story">
             <SectionLabel>THE MISSION</SectionLabel>
             <p className="story-aside-note">Come up by doing the work.</p>
             <span className="story-stamp" aria-hidden="true">

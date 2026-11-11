@@ -4,6 +4,10 @@ import { App, legacyHashRedirectTarget } from "./App.tsx";
 import { brand } from "./branding.ts";
 import { readPresentation } from "./presentation.ts";
 
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
 afterEach(() => {
   cleanup();
   window.history.pushState({}, "", "/");
@@ -17,7 +21,7 @@ test("public production requires explicit approval, carries real branding and ke
     VITE_COMMUNITY_PRESENTATION: "production", VITE_COMMUNITY_BRAND_LAUNCH_APPROVED: "true",
   })} />);
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Potential shouldn't depend on who you know.");
-  expect(screen.getByText(brand.meaning)).toBeDefined();
+  expect(document.body.textContent).toContain(brand.meaning);
   expect(document.body.textContent).not.toMatch(/preview|provisional|noindex/i);
   expect(screen.getByText(/Enrollment is not open/)).toBeDefined();
   expect(screen.getByText(/no active athletics, fitness, facility, or training service/i)).toBeDefined();
@@ -30,7 +34,7 @@ test("the approved meaning and provisional brand are prominent, and the acronym 
   render(<App />);
 
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Potential shouldn't depend on who you know.");
-  expect(screen.getAllByText(brand.meaning)).toHaveLength(1);
+  expect(countOccurrences(document.body.textContent ?? "", brand.meaning)).toBe(1);
   expect(screen.getAllByRole("link", { name: /CUT BLOCK home/i })).toHaveLength(2);
   expect(screen.getAllByText(/provisional working brand/i).length).toBeGreaterThan(0);
   expect(document.body.textContent).toContain("From the codebase to the field.");
