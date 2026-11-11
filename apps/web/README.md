@@ -6,11 +6,31 @@ The approved meaning is **“Come Up Through Building, Learning,
 Opportunity & Competition”**; the public copy must not substitute a different
 expansion.
 
-The site describes the founder-led mission, a planned adult technology and
-mentorship pathway, and performance/athletics/facility ideas as future
-concepts only. It must not imply that any program, facility, application,
-mentor matching, or participant intake is operating. Youth participation
-remains out of scope until safeguarding and guardian workflows are reviewed.
+The site describes the founder-led mission, then separates **development
+tracks** (office: the planned adult technology/mentorship pilot plus a
+broader PM/engineering/QA/infrastructure/leadership roadmap; field: a future
+offensive/defensive-line-first athletic pathway) from **participation roles**
+(learner/mentor), which are independent concepts. It must not imply that any
+program, facility, application, mentor matching, or participant intake is
+operating. Youth participation remains out of scope until safeguarding and
+guardian workflows are reviewed. Any reference to an external collaborator
+(for example The Lab Performance & Strength) must be labeled as a potential
+
+## Pages
+
+The home page (`/`) is a short narrative (hero, mission, a two-track
+pathways teaser, participation roles, collaborators, readiness, FAQ) that
+links out to two dedicated routes for deeper content: `/pathways` (the full
+office capability map and field OL/DL focus) and `/experience` (illustrative
+practice examples spanning both tracks). There is no client router; each
+route is served by the same bundle (`main.tsx` dispatches on
+`location.pathname`), and cross-page navigation is a normal full page load
+via plain `<a href>` links, consistent with how `/internal` already works.
+Legacy anchors `#story` (→ mission) and `#approach` (→ `/experience`,
+via redirect) keep old bookmarks working. Because the target sections don't
+exist in the server-sent HTML, pages call `scrollToHash` from `chrome.tsx`
+on mount instead of relying on the browser's native fragment scrolling.
+collaboration under discussion, never a confirmed partnership.
 
 Keep default preview builds `noindex, nofollow`; do not add unverified contact details,
 testimonials, outcomes, legal-status claims, external enrollment links, or

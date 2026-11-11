@@ -29,7 +29,9 @@ test("live probes accept exact staged/promoted bytes and reject indexing, tamper
       response.end(JSON.stringify({ status: "ok", application: "community" }));
     } else if (path === "/me") {
       response.writeHead(401).end();
-    } else if (path === "/" || path === "/internal" || path === "/internal/" || path === "/assets/index-hash.js") {
+    } else if (path === "/" || path === "/internal" || path === "/internal/"
+      || path === "/pathways" || path === "/pathways/" || path === "/experience" || path === "/experience/"
+      || path === "/assets/index-hash.js") {
       if ((environment === "development" && fault !== "missing-noindex") || path.startsWith("/internal") || fault === "production-noindex") {
         response.setHeader("x-robots-tag", "noindex, nofollow");
       }

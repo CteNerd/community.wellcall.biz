@@ -27,12 +27,14 @@ Region is fixed to `us-east-1`.
 - On-demand core table with an application-review index, a pending-outbox index,
   TTL and a new-image stream; production PITR, deletion protection and retention.
 - Private S3, CloudFront OAC/HTTPS/security headers; no uploaded assets or broad
-  SPA fallback. Both environments rewrite only GET/HEAD `/internal` or
-  `/internal/` to `/index.html`, preserving query; unknown/assets keep origin errors;
-  both exact internal paths always return noindex response headers. Development
-  adds noindex headers to all paths so production-candidate staging is safe.
-  Public production paths use security headers without noindex. Legacy
-  applications are not replaced.
+  SPA fallback. Both environments rewrite only GET/HEAD `/internal`, `/internal/`,
+  `/pathways`, `/pathways/`, `/experience` or `/experience/` to `/index.html`,
+  preserving query; unknown/assets keep origin errors. The two internal paths
+  always return noindex response headers; the two public pathway/experience
+  paths instead follow the same indexing rules as `/` (noindex only in
+  development). Development adds noindex headers to all paths so
+  production-candidate staging is safe. Public production paths use security
+  headers without noindex. Legacy applications are not replaced.
 - Invitation-only Cognito with required authenticator MFA and a public client.
   The `CommunityAdministrators` group is empty by default. No initial users
   or group memberships are provisioned. Both environments include
@@ -214,10 +216,11 @@ The protected `development` job downloads that artifact by ID and verifies the
 manifest against the candidate-job digest before obtaining environment-scoped
 OIDC. It stages the production bytes, validates private-bucket/distribution
 ownership, checks API health and anonymous `/me` 401, compares live HTML/assets
-byte-for-byte, verifies noindex headers and both exact `/internal` routes, and
-requires unknown/asset probes to remain origin 403/404. Only after success can
-the protected `production` job download/verify/promote **the same bytes**, with
-no rebuild or workspace install. Production public responses must not be
+byte-for-byte, verifies noindex headers and both exact `/internal` routes, probes
+the public `/pathways` and `/experience` deep links for the same indexing rules
+as `/`, and requires unknown/asset probes to remain origin 403/404. Only after
+success can the protected `production` job download/verify/promote **the same
+bytes**, with no rebuild or workspace install. Production public responses must not be
 noindex. API readiness is required; backend deployment is separate.
 
 Operator prerequisites (not configured by this change):

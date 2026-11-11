@@ -279,15 +279,6 @@ h1 em {
   font-style: normal;
 }
 
-.hero-brand-meaning {
-  max-width: 35rem;
-  margin: -0.3rem 0 1rem;
-  color: #586e5e;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  line-height: 1.7;
-}
-
 .hero-deck {
   max-width: 36rem;
   margin-bottom: 0;
@@ -548,6 +539,7 @@ h1 em {
 
 .story-copy h2,
 .section-heading h2,
+.page-heading h1,
 .approach h2,
 .readiness-main h2,
 .faq h2 {
@@ -720,6 +712,268 @@ h1 em {
   font-size: 0.76rem;
 }
 
+.pathway-teaser-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.pathway-teaser {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  background: #fbfaf5;
+}
+
+.pathway-teaser h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.pathway-teaser > p {
+  margin: 0 0 1.2rem;
+  color: #566259;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.pathway-teaser .text-link {
+  margin-top: auto;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #c9d0c4;
+  color: #3c4a40;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-chip-planned .status-dot {
+  background: #6c861f;
+}
+
+.status-chip-future {
+  border-color: #d7c9a8;
+}
+
+.status-chip-future .status-dot {
+  background: #a9833c;
+}
+
+.track-group {
+  margin-top: 3rem;
+}
+
+.track-group:first-of-type {
+  margin-top: 2.5rem;
+}
+
+.track-header h2 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: -0.06em;
+}
+
+.track-header > p {
+  max-width: 48rem;
+  margin: 0 0 1.6rem;
+  color: #566259;
+  font-size: 0.92rem;
+}
+
+.field-headline {
+  margin: 0 0 0.6rem !important;
+  color: var(--ink) !important;
+  font-family: var(--display);
+  font-size: 1.1rem !important;
+  font-weight: 600;
+}
+
+.capability-grid,
+.field-grid,
+.example-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.capability-card,
+.field-card,
+.example-card {
+  padding: 1.2rem;
+  border: 1px solid var(--line);
+  background: #fbfaf5;
+}
+
+.capability-card h3,
+.field-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+
+.capability-skills {
+  margin: 0 0 0.6rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.capability-example,
+.field-card > p {
+  margin: 0;
+  color: #566259;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.track-illustration {
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  margin-top: 1.5rem;
+  border: 1px solid var(--line);
+}
+
+.field-disclaimer {
+  max-width: 48rem;
+  margin: 1.2rem 0 0;
+  color: #566259;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
+.experience-section {
+  position: relative;
+  padding-block: 6.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.experience-section .section-heading > p {
+  color: #59665d;
+}
+
+.example-track {
+  margin: 0 0 0.3rem;
+  color: #5b6b5f;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.example-card h2 {
+  margin: 0 0 0.8rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.example-card dl {
+  margin: 0;
+}
+
+.example-card dt {
+  color: #5b6b5f;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.example-card dd {
+  margin: 0.2rem 0 0.8rem;
+  color: #3a453d;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.example-card dd:last-child {
+  margin-bottom: 0;
+}
+
+.progress-evidence {
+  max-width: 50rem;
+  margin: 2rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  color: #566259;
+  font-size: 0.85rem;
+  line-height: 1.7;
+}
+
+.ecosystem-section {
+  padding-block: 6.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.ecosystem-section h2 {
+  max-width: 20ch;
+  margin: 0.8rem 0 1.2rem;
+  font-size: clamp(2rem, 3.5vw, 3rem);
+}
+
+.ecosystem-section > p {
+  max-width: 50rem;
+  margin-bottom: 1.6rem;
+  color: #566259;
+}
+
+.collaborator-card {
+  max-width: 42rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  background: #fbfaf5;
+}
+
+.collaborator-status {
+  margin: 0 0 0.6rem;
+  color: #6c861f;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.collaborator-card h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.collaborator-card > p {
+  margin: 0;
+  color: #4d5a52;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.ecosystem-footnote {
+  max-width: 50rem;
+  margin: 1.5rem 0 0;
+  color: #647068;
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
 .approach {
   padding-block: 7rem;
 }
@@ -817,23 +1071,6 @@ h1 em {
 .readiness-section {
   color: var(--white);
   background: var(--ink);
-}
-
-.future-vision {
-  padding-block: 4.5rem;
-  border-top: 1px solid var(--line);
-}
-
-.future-vision h2 {
-  max-width: 18ch;
-  margin: 0.8rem 0;
-  font-size: clamp(2rem, 3.5vw, 3rem);
-}
-
-.future-vision > p:last-child {
-  max-width: 50rem;
-  margin-bottom: 0;
-  color: #566259;
 }
 
 .readiness-wrap {
@@ -1172,6 +1409,25 @@ h1 em {
 
   .pathway-symbol {
     margin-top: 1.5rem;
+  }
+
+  .capability-grid,
+  .field-grid,
+  .example-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pathway-teaser-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .track-illustration {
+    max-width: 100%;
+  }
+
+  .experience-section,
+  .ecosystem-section {
+    padding-block: 4.5rem;
   }
 
   .approach-intro h2 {
