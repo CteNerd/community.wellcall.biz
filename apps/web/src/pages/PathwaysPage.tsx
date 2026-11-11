@@ -105,7 +105,7 @@ export function PathwaysPage({ presentation = readPresentation(import.meta.env) 
               </div>
               <img
                 className="track-illustration"
-                src="/assets/cut-block-office-pathway-d1d5cdcf5955.png"
+                src="/assets/cut-block-office-pathway-51c42a697bf0.jpg"
                 alt="Illustrative cartoon artwork of a group of adults collaborating on technology work; not a photo of real participants."
                 loading="lazy"
                 width={640}
@@ -136,7 +136,7 @@ export function PathwaysPage({ presentation = readPresentation(import.meta.env) 
               </div>
               <img
                 className="track-illustration"
-                src="/assets/cut-block-field-pathway-035af9be119d.png"
+                src="/assets/cut-block-field-pathway-8a50c3597ea8.jpg"
                 alt="Illustrative cartoon artwork of stylized offensive and defensive linemen in the trenches; not a photo of real athletes or an active program."
                 loading="lazy"
                 width={640}
