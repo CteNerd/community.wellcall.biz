@@ -80,9 +80,9 @@ export class ApplicationStack extends Stack {
       subjectAlternativeNames: config.apiDomain ? [config.apiDomain] : [],
       validation: acm.CertificateValidation.fromDns(zone),
     }) : undefined;
-    const internalRoute = new cloudfront.Function(this, "InternalWorkspaceRoute", {
+    const routeRewrite = new cloudfront.Function(this, "PublicRouteRewrite", {
       code: cloudfront.FunctionCode.fromInline(
-        'function handler(event) { var request = event.request; if ((request.method === "GET" || request.method === "HEAD") && (request.uri === "/internal" || request.uri === "/internal/")) request.uri = "/index.html"; return request; }',
+        'function handler(event) { var request = event.request; if (request.method === "GET" || request.method === "HEAD") { var known = ["/internal", "/internal/", "/pathways", "/pathways/", "/experience", "/experience/"]; if (known.indexOf(request.uri) !== -1) request.uri = "/index.html"; } return request; }',
       ),
     });
     const privateHeaders = new cloudfront.ResponseHeadersPolicy(this, "PrivateWebHeaders", {
@@ -98,7 +98,7 @@ export class ApplicationStack extends Stack {
     const internalBehavior: cloudfront.BehaviorOptions = {
       origin, viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       responseHeadersPolicy: privateHeaders, compress: true,
-      functionAssociations: [{ function: internalRoute, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
+      functionAssociations: [{ function: routeRewrite, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }],
     };
     const distribution = new cloudfront.Distribution(this, "Web", {
       defaultRootObject: "index.html",
@@ -107,8 +107,8 @@ export class ApplicationStack extends Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         responseHeadersPolicy: production ? cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS : privateHeaders,
         compress: true,
-        ...(internalRoute ? { functionAssociations: [{
-          function: internalRoute, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+        ...(routeRewrite ? { functionAssociations: [{
+          function: routeRewrite, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
         }] } : {}),
       },
       additionalBehaviors: { "/internal": internalBehavior, "/internal/": internalBehavior },

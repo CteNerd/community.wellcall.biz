@@ -96,7 +96,10 @@ test("development foundation has private hosting, no DNS writes, and protected i
   const rewrite = runInNewContext(`${rewriteCode}; handler`) as (event: { request: object }) => { uri: string; querystring: object };
   for (const [method, uri, expected] of [
     ["GET", "/internal", "/index.html"], ["HEAD", "/internal/", "/index.html"],
-    ["POST", "/internal", "/internal"], ["GET", "/unknown", "/unknown"],
+    ["GET", "/pathways", "/index.html"], ["HEAD", "/pathways/", "/index.html"],
+    ["GET", "/experience", "/index.html"], ["HEAD", "/experience/", "/index.html"],
+    ["POST", "/internal", "/internal"], ["POST", "/pathways", "/pathways"],
+    ["GET", "/unknown", "/unknown"], ["GET", "/pathwaysx", "/pathwaysx"],
     ["GET", "/assets/missing.js", "/assets/missing.js"],
   ]) {
     const querystring = { state: { value: "unchanged" } };

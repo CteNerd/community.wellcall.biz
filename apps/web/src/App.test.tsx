@@ -1,10 +1,13 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, test } from "vitest";
-import { App } from "./App.tsx";
+import { App, legacyHashRedirectTarget } from "./App.tsx";
 import { brand } from "./branding.ts";
 import { readPresentation } from "./presentation.ts";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.history.pushState({}, "", "/");
+});
 
 test("public production requires explicit approval, carries real branding and keeps all intake closed", () => {
   expect(readPresentation({ PROD: true }).production).toBe(false);
@@ -33,27 +36,42 @@ test("the approved meaning and provisional brand are prominent, and the acronym 
   expect(document.body.textContent).toContain("From the codebase to the field.");
 });
 
-test("navigation links to every architecture section and all targets resolve", () => {
+test("navigation mixes home anchors with the pathways/experience pages, and all home anchors resolve", () => {
   render(<App />);
 
   const nav = screen.getByRole("navigation", { name: "Main navigation" });
-  const navigationTargets = within(nav)
-    .getAllByRole("link")
-    .map((link) => link.getAttribute("href")?.slice(1));
+  const navLinks = within(nav).getAllByRole("link");
+  const hrefByLabel = Object.fromEntries(navLinks.map((link) => [link.textContent, link.getAttribute("href")]));
 
-  expect(navigationTargets).toEqual(["mission", "pathways", "experience", "participate", "ecosystem", "readiness", "faq"]);
-  for (const id of navigationTargets) {
-    expect(document.getElementById(id ?? "")).not.toBeNull();
+  expect(hrefByLabel).toEqual({
+    Mission: "#mission",
+    Pathways: "/pathways",
+    Experience: "/experience",
+    Participate: "#participate",
+    Collaborators: "#ecosystem",
+    Readiness: "#readiness",
+    FAQ: "#faq",
+  });
+  for (const [label, href] of Object.entries(hrefByLabel)) {
+    if (href?.startsWith("#")) expect(document.getElementById(href.slice(1)), label).not.toBeNull();
   }
 });
 
-test("legacy anchors #story and #approach still resolve so old bookmarks keep working", () => {
+test("legacy anchor #story still resolves on the home page", () => {
   render(<App />);
-
   expect(document.getElementById("story")).not.toBeNull();
-  expect(document.getElementById("approach")).not.toBeNull();
   expect(document.getElementById("mission")).not.toBeNull();
-  expect(document.getElementById("experience")).not.toBeNull();
+});
+
+test("legacy #approach hash maps to the new /experience page", () => {
+  expect(legacyHashRedirectTarget("#approach")).toBe("/experience");
+  expect(legacyHashRedirectTarget("#mission")).toBeNull();
+  expect(legacyHashRedirectTarget("")).toBeNull();
+});
+
+test("mounting the home page with a legacy #approach bookmark redirects instead of scrolling, without throwing", () => {
+  window.history.pushState({}, "", "/#approach");
+  expect(() => render(<App />)).not.toThrow();
 });
 
 test("the mission section tells one human story without restating the acronym as a separate headline elsewhere", () => {
@@ -65,59 +83,36 @@ test("the mission section tells one human story without restating the acronym as
   expect(screen.queryByRole("heading", { name: /bigger vision/i })).toBeNull();
 });
 
-test("pathways distinguishes office (planned adult pilot) and field (future pathway) tracks with visible status text", () => {
+test("the home pathways teaser summarizes both tracks and links out to the dedicated pages, without duplicating the full capability/field grids", () => {
   render(<App />);
 
-  expect(screen.getByRole("heading", { name: "In the office" })).toBeDefined();
-  expect(screen.getByRole("heading", { name: "On the field" })).toBeDefined();
-  expect(screen.getByText("Planned adult pilot")).toBeDefined();
-  expect(screen.getByText("Future pathway")).toBeDefined();
+  const pathwaysSection = document.getElementById("pathways") as HTMLElement;
+  expect(within(pathwaysSection).getByText("Planned adult pilot")).toBeDefined();
+  expect(within(pathwaysSection).getByText("Future pathway")).toBeDefined();
+  expect(within(pathwaysSection).getByRole("heading", { name: "In the office" })).toBeDefined();
+  expect(within(pathwaysSection).getByRole("heading", { name: "On the field" })).toBeDefined();
+  expect(within(pathwaysSection).getByRole("link", { name: /See the full office pathway/ }).getAttribute("href")).toBe("/pathways#office");
+  expect(within(pathwaysSection).getByRole("link", { name: /See the full field pathway/ }).getAttribute("href")).toBe("/pathways#field");
+  expect(within(pathwaysSection).getByRole("link", { name: /Explore example learning experiences/ }).getAttribute("href")).toBe("/experience");
 
-  for (const group of [
-    "Plan and deliver", "Engineer and build", "Validate quality",
-    "Operate and scale", "Lead and grow", "Explore future disciplines",
-  ]) {
-    expect(screen.getByRole("heading", { name: group })).toBeDefined();
-  }
-  expect(screen.getByText(/Project management, requirements, agile delivery/)).toBeDefined();
-  expect(screen.getByText(/QA, exploratory testing, automation, accessibility/)).toBeDefined();
-
-  for (const area of ["Offensive line", "Defensive line", "Shared development", "Additional positions"]) {
-    expect(screen.getByRole("heading", { name: area })).toBeDefined();
-  }
-  expect(screen.getByText(/No field training program, gym, facility, youth program or/)).toBeDefined();
+  // The detailed capability map and field focus cards now live on /pathways, not the home page.
+  expect(screen.queryByRole("heading", { name: "Plan and deliver" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Offensive line" })).toBeNull();
+  expect(document.getElementById("experience")).toBeNull();
 });
 
 test("pathways are not rendered as two audience roles; roles live separately in participate", () => {
   render(<App />);
 
-  const pathwaysSection = document.getElementById("pathways");
-  expect(pathwaysSection).not.toBeNull();
-  expect(within(pathwaysSection as HTMLElement).queryByText("I want to grow.")).toBeNull();
-  expect(within(pathwaysSection as HTMLElement).queryByText("I want to give back.")).toBeNull();
+  const pathwaysSection = document.getElementById("pathways") as HTMLElement;
+  expect(within(pathwaysSection).queryByText("I want to grow.")).toBeNull();
+  expect(within(pathwaysSection).queryByText("I want to give back.")).toBeNull();
 
-  const participateSection = document.getElementById("participate");
-  expect(participateSection).not.toBeNull();
-  expect(within(participateSection as HTMLElement).getByText("I want to grow.")).toBeDefined();
-  expect(within(participateSection as HTMLElement).getByText("I want to give back.")).toBeDefined();
+  const participateSection = document.getElementById("participate") as HTMLElement;
+  expect(within(participateSection).getByText("I want to grow.")).toBeDefined();
+  expect(within(participateSection).getByText("I want to give back.")).toBeDefined();
   expect(document.getElementById("learner-journey")).not.toBeNull();
   expect(document.getElementById("mentor-journey")).not.toBeNull();
-});
-
-test("experience section shows at least four tangible, clearly-labeled example artifacts across both tracks", () => {
-  render(<App />);
-
-  expect(screen.getByRole("heading", { name: "What learners could actually do." })).toBeDefined();
-  expect(screen.getByText(/not results already delivered to past participants/i)).toBeDefined();
-
-  const exampleTitles = ["Ship a useful feature", "Quality is a profession", "Lead the work", "Run it responsibly"];
-  for (const title of exampleTitles) {
-    expect(screen.getByRole("heading", { name: title })).toBeDefined();
-  }
-  // At least one example illustrates each track.
-  const experienceSection = document.getElementById("experience");
-  expect(within(experienceSection as HTMLElement).getAllByText("Office").length).toBeGreaterThan(0);
-  expect(within(experienceSection as HTMLElement).getAllByText("Field").length).toBeGreaterThan(0);
 });
 
 test("participate explains the proposed experience flow and progress evidence without promising outcomes", () => {
@@ -143,10 +138,10 @@ test("ecosystem names The Lab as a labeled potential collaboration without claim
   expect(within(ecosystemSection).getByText(/not CUT BLOCK cohort accomplishments, paid placements/)).toBeDefined();
 });
 
-test("hero CTAs lead into the new architecture without opening enrollment", () => {
+test("hero CTAs lead into the pathways page and participate section without opening enrollment", () => {
   render(<App />);
 
-  expect(screen.getByRole("link", { name: "Explore development pathways" }).getAttribute("href")).toBe("#pathways");
+  expect(screen.getByRole("link", { name: "Explore development pathways" }).getAttribute("href")).toBe("/pathways");
   expect(screen.getByRole("link", { name: "How the pilot may work" }).getAttribute("href")).toBe("#participate");
   expect(screen.getByText(/adult technology pilot planned · applications\s*closed · field training not open/)).toBeDefined();
   expect(document.querySelector("form")).toBeNull();
@@ -162,6 +157,6 @@ test("FAQ content covers the pathway/role distinction and The Lab, with no appli
   expect(screen.getByText(/Is The Lab part of CUT BLOCK\?/)).toBeDefined();
   expect(document.querySelector("form")).toBeNull();
   expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
-  expect(document.querySelector('a[href^="tel:"]')).toBeNull();
+  expect(document.querySelectorAll('a[href^="tel:"]').length).toBe(0);
   expect(document.querySelectorAll('a[href^="http"]').length).toBe(0);
 });

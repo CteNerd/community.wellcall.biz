@@ -46,6 +46,19 @@ for (const path of ["/internal", "/internal/"]) {
     throw new Error("Exact private internal deep link is not ready");
   }
 }
+for (const path of ["/pathways", "/pathways/", "/experience", "/experience/"]) {
+  const response = await request(`${web}${path}`);
+  if (response.status !== 200
+    || !Buffer.from(await response.arrayBuffer()).equals(readFileSync(resolve(directory, "index.html")))) {
+    throw new Error(`Public pathway deep link is not ready: ${path}`);
+  }
+  if (target.environment === "development" && !response.headers.get("x-robots-tag")?.includes("noindex")) {
+    throw new Error(`Development staging must suppress indexing for public deep link: ${path}`);
+  }
+  if (target.environment === "production" && response.headers.get("x-robots-tag")?.includes("noindex")) {
+    throw new Error(`Public production deep link must not suppress indexing: ${path}`);
+  }
+}
 for (const path of ["/assets/missing-release-probe.js", "/unknown-release-probe"]) {
   const response = await request(`${web}${path}`);
   if (![403, 404].includes(response.status)) throw new Error("Unknown paths/assets must retain origin errors");

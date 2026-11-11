@@ -1,116 +1,14 @@
-import { brand } from "./branding.ts";
+import { useEffect } from "react";
+import { PreviewBanner, scrollToHash, SectionLabel, SiteFooter, SiteHeader, SkipLink, StatusChip } from "./chrome.tsx";
 import { readPresentation } from "./presentation.ts";
+import { brand } from "./branding.ts";
 import "./style.css";
 
 /**
- * Development tracks (what a learner may study) are intentionally modeled
- * separately from participation roles (how a visitor may someday engage).
- * See the office/field capability maps below and the learner/mentor role
- * cards in the "participate" section.
+ * Development tracks (what a learner may study, on the Pathways/Experience
+ * pages) are intentionally modeled separately from participation roles (how
+ * a visitor may someday engage, in the role cards below).
  */
-const officeCapabilityGroups = [
-  {
-    group: "Plan and deliver",
-    skills: "Project management, requirements, agile delivery, stakeholder communication, product thinking",
-    example: "Turn a real-world problem into an issue backlog, milestones, acceptance criteria and a delivery review.",
-  },
-  {
-    group: "Engineer and build",
-    skills: "Frontend, backend, full-stack software development, API design, AI-assisted engineering, applied AI evaluation",
-    example: "Build a small app with a usable UI, an API contract, tests and a demo.",
-  },
-  {
-    group: "Validate quality",
-    skills: "QA, exploratory testing, automation, accessibility, SDET / quality engineering",
-    example: "Design a test plan, reproduce a bug and add checks that prevent a regression.",
-  },
-  {
-    group: "Operate and scale",
-    skills: "Cloud / infrastructure, DevOps, observability, security fundamentals, cost decisions",
-    example: "Create a deployment plan, a visibility dashboard or a simple cost/operability review with safe sample data.",
-  },
-  {
-    group: "Lead and grow",
-    skills: "Technical leadership, team management, mentoring, presentation, communication and decision-making",
-    example: "Lead a project review, explain trade-offs, present progress and give actionable feedback.",
-  },
-  {
-    group: "Explore future disciplines",
-    skills: "Robotics, hardware/software integration, more specialized engineering",
-    example: "Prototype a sensor/automation scenario using safe available equipment or a simulation—only once qualified mentors and resources exist.",
-  },
-];
-
-const fieldFocusAreas = [
-  {
-    focus: "Offensive line",
-    topics: "Stance and start, footwork, leverage, hand placement within applicable rules, communication, protection and run-game understanding.",
-  },
-  {
-    focus: "Defensive line",
-    topics: "Stance/get-off, leverage, gap responsibilities, hand technique within applicable rules, film study and team communication.",
-  },
-  {
-    focus: "Shared development",
-    topics: "Position film review, coach feedback, leadership and accountability, appropriately supervised performance/conditioning.",
-  },
-  {
-    focus: "Additional positions",
-    topics: "Future partner-led possibilities, only after relevant expertise, scope and operating safeguards are verified.",
-  },
-];
-
-const experienceExamples = [
-  {
-    track: "Office",
-    title: "Ship a useful feature",
-    skill: "Full-stack engineering",
-    artifact: "A small working app: a real user need, a planned backlog, a frontend and API, and a demo.",
-    mentorRole: "A future engineer mentor reviews the work and the decisions behind it.",
-    growthSignal: "Can explain a design trade-off, not just that the feature works.",
-  },
-  {
-    track: "Office",
-    title: "Quality is a profession",
-    skill: "QA / SDET",
-    artifact: "Turn bug reports into regression tests, accessibility checks and release confidence.",
-    mentorRole: "A future quality-engineering mentor reviews the test plan and coverage.",
-    growthSignal: "Can describe why a check prevents a specific regression.",
-  },
-  {
-    track: "Office",
-    title: "Lead the work",
-    skill: "Project management / leadership",
-    artifact: "Prioritize a backlog, manage risks, run a stakeholder review and facilitate constructive feedback.",
-    mentorRole: "A future leadership mentor reviews how decisions and trade-offs were communicated.",
-    growthSignal: "Can run a review that leaves the team clearer on next steps.",
-  },
-  {
-    track: "Office",
-    title: "Run it responsibly",
-    skill: "Cloud / DevOps",
-    artifact: "Deploy a safe demo, observe it, understand its cost, and document who owns it.",
-    mentorRole: "A future infrastructure mentor reviews the deployment and operability plan.",
-    growthSignal: "Can explain what would page someone at 2 a.m., and why.",
-  },
-  {
-    track: "Field",
-    title: "Trenches fundamentals",
-    skill: "OL/DL stance, start and leverage",
-    artifact: "A filmed drill repetition reviewed for footwork and hand placement.",
-    mentorRole: "A future qualified position coach—not active today.",
-    growthSignal: "Cleaner footwork and hand placement from one rep to the next.",
-  },
-  {
-    track: "Field",
-    title: "Build the film-room habit",
-    skill: "Film study and communication",
-    artifact: "Break down one play and present the read to a small group.",
-    mentorRole: "A future coach-led session—not active today.",
-    growthSignal: "Can describe a gap responsibility or protection call clearly.",
-  },
-];
-
 const participationRoles = [
   {
     number: "01",
@@ -141,7 +39,7 @@ const practiceSteps = [
   {
     number: "02",
     title: "Choose",
-    description: "Pick a skill or project from the office or field pathways above.",
+    description: "Pick a skill or project from the office or field pathways.",
   },
   {
     number: "03",
@@ -203,17 +101,13 @@ const questions = [
   },
 ];
 
-function SectionLabel({ children }: { children: string }) {
-  return <p className="section-label">{children}</p>;
-}
-
-function StatusChip({ tone, children }: { tone: "planned" | "future"; children: string }) {
-  return (
-    <span className={`status-chip status-chip-${tone}`}>
-      <span className="status-dot" aria-hidden="true" />
-      {children}
-    </span>
-  );
+/**
+ * "Experience" moved from a same-page section to its own page; keep the old
+ * #approach bookmark working by redirecting instead of scrolling. Exported
+ * so the mapping itself is directly testable without mocking navigation.
+ */
+export function legacyHashRedirectTarget(hash: string): string | null {
+  return hash === "#approach" ? "/experience" : null;
 }
 
 export function App({ presentation = readPresentation(import.meta.env) } = {}) {
@@ -221,41 +115,20 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
   const displayedQuestions = questions.map((item) => item.question === "Is CUT BLOCK a nonprofit or a registered organization?" && production
     ? { ...item, answer: "CUT BLOCK makes no claim here about legal structure, nonprofit status, tax deductibility, or registration." }
     : item);
+
+  useEffect(() => {
+    const target = legacyHashRedirectTarget(window.location.hash);
+    if (target) window.location.replace(target);
+    // The index document has no pre-rendered sections for the browser to
+    // jump to, so native "#id" scrolling on load is unreliable; do it here.
+    else scrollToHash(window.location.hash);
+  }, []);
+
   return (
     <>
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
-
-      <div className="preview-banner">
-        <span className="status-dot" aria-hidden="true" />
-        {production ? "CUT BLOCK" : "Development preview"}
-      </div>
-
-      <header className="site-header">
-        <a className="brand-lockup" href="#top" aria-label={`${brand.shortName} home`}>
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-            <span />
-          </span>
-          <span className="brand-type">
-            <strong>{brand.shortName}</strong>
-            <span>{brand.productName.replace(`${brand.shortName} `, "").toUpperCase()}</span>
-          </span>
-        </a>
-        <nav className="main-nav" aria-label="Main navigation">
-          <a href="#mission">Mission</a>
-          <a href="#pathways">Pathways</a>
-          <a href="#experience">Experience</a>
-          <a href="#participate">Participate</a>
-          <a href="#ecosystem">Collaborators</a>
-          <a href="#readiness">Readiness</a>
-          <a href="#faq">FAQ</a>
-        </nav>
-        <a className="header-status" href="#readiness">
-          Pilot readiness <span aria-hidden="true">↗</span>
-        </a>
-      </header>
+      <SkipLink />
+      <PreviewBanner production={production} />
+      <SiteHeader page="home" />
 
       <main id="main">
         <section className="hero" id="top" aria-labelledby="hero-title">
@@ -272,7 +145,7 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
               eventual on-field development network rooted in the trenches.
             </p>
             <div className="hero-actions">
-              <a className="button button-dark" href="#pathways">
+              <a className="button button-dark" href="/pathways">
                 Explore development pathways <span aria-hidden="true">↘</span>
               </a>
               <a className="text-link" href="#participate">
@@ -383,103 +256,36 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
                 question answered in Participate below.
               </p>
             </div>
-
-            <div className="track-group">
-              <div className="track-header">
+            <div className="pathway-teaser-grid">
+              <article className="pathway-teaser">
                 <StatusChip tone="planned">Planned adult pilot</StatusChip>
                 <h3>In the office</h3>
                 <p>
-                  The first pilot's planned focus is adult technology
-                  learning and mentorship. Project management and QA are
-                  first-class options here, not footnotes under "coding"—a
-                  learner need not already be a developer.
+                  Project management, full-stack engineering, QA,
+                  cloud/DevOps, leadership and more—organized into a
+                  six-group capability map.
                 </p>
-              </div>
-              <div className="capability-grid">
-                {officeCapabilityGroups.map((item) => (
-                  <article className="capability-card" key={item.group}>
-                    <h4>{item.group}</h4>
-                    <p className="capability-skills">{item.skills}</p>
-                    <p className="capability-example">{item.example}</p>
-                  </article>
-                ))}
-              </div>
-              <img
-                className="track-illustration"
-                src="/assets/cut-block-office-pathway-d1d5cdcf5955.png"
-                alt="Illustrative cartoon artwork of a group of adults collaborating on technology work; not a photo of real participants."
-                loading="lazy"
-                width={640}
-                height={640}
-              />
-            </div>
-
-            <div className="track-group">
-              <div className="track-header">
+                <a className="text-link" href="/pathways#office">
+                  See the full office pathway <span aria-hidden="true">→</span>
+                </a>
+              </article>
+              <article className="pathway-teaser">
                 <StatusChip tone="future">Future pathway</StatusChip>
                 <h3>On the field</h3>
-                <p className="field-headline">Built in the trenches.</p>
                 <p>
-                  Our field-development vision starts where games are won and
-                  lost: the offensive and defensive lines. We aim to connect
-                  athletes with qualified coaching, deliberate practice and
-                  practical feedback, while creating room for experienced
-                  partners to support additional positions over time.
+                  Built in the trenches: a future offensive and defensive
+                  line development vision, with room for additional
+                  positions over time.
                 </p>
-              </div>
-              <div className="field-grid">
-                {fieldFocusAreas.map((item) => (
-                  <article className="field-card" key={item.focus}>
-                    <h4>{item.focus}</h4>
-                    <p>{item.topics}</p>
-                  </article>
-                ))}
-              </div>
-              <img
-                className="track-illustration"
-                src="/assets/cut-block-field-pathway-035af9be119d.png"
-                alt="Illustrative cartoon artwork of stylized offensive and defensive linemen in the trenches; not a photo of real athletes or an active program."
-                loading="lazy"
-                width={640}
-                height={640}
-              />
-              <p className="field-disclaimer">
-                No field training program, gym, facility, youth program or
-                athlete enrollment is open today.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="experience-section section-wrap" id="experience" aria-labelledby="experience-title">
-          <span id="approach" className="legacy-anchor" aria-hidden="true" />
-          <div className="section-heading">
-            <div>
-              <SectionLabel>EXAMPLES OF PLANNED EXPERIENCES</SectionLabel>
-              <h2 id="experience-title">What learners could actually do.</h2>
-            </div>
-            <p>
-              Illustrative examples of projects, deliverables and training
-              activities—not results already delivered to past participants.
-            </p>
-          </div>
-          <div className="example-grid">
-            {experienceExamples.map((example) => (
-              <article className="example-card" key={example.title}>
-                <p className="example-track">{example.track}</p>
-                <h3>{example.title}</h3>
-                <dl>
-                  <dt>Skill</dt>
-                  <dd>{example.skill}</dd>
-                  <dt>Practice artifact</dt>
-                  <dd>{example.artifact}</dd>
-                  <dt>Mentor role</dt>
-                  <dd>{example.mentorRole}</dd>
-                  <dt>Growth signal</dt>
-                  <dd>{example.growthSignal}</dd>
-                </dl>
+                <a className="text-link" href="/pathways#field">
+                  See the full field pathway <span aria-hidden="true">→</span>
+                </a>
               </article>
-            ))}
+            </div>
+            <p className="pathways-note">
+              Want concrete examples of what this could look like?{" "}
+              <a className="text-link" href="/experience">Explore example learning experiences <span aria-hidden="true">→</span></a>
+            </p>
           </div>
         </section>
 
@@ -619,24 +425,7 @@ export function App({ presentation = readPresentation(import.meta.env) } = {}) {
         </section>
       </main>
 
-      <footer className="site-footer">
-        <div className="footer-main">
-          <a className="brand-lockup footer-brand" href="#top" aria-label={`${brand.shortName} home`}>
-            <span className="brand-mark" aria-hidden="true"><span /><span /></span>
-            <span className="brand-type">
-              <strong>{brand.shortName}</strong>
-              <span>{brand.productName.replace(`${brand.shortName} `, "").toUpperCase()}</span>
-            </span>
-          </a>
-          <p>Build with purpose, in the office and on the field.</p>
-          {production && <p>Business line: <a href="tel:+12816927522">281-692-7522</a></p>}
-          <a className="footer-top" href="#top">Back to top ↑</a>
-        </div>
-        <div className="footer-bottom">
-          <span>{production ? brand.productName : `Development preview · ${brand.status} working brand`}</span>
-          <span>Adult pilot planned · Field training not open · Enrollment closed.</span>
-        </div>
-      </footer>
+      <SiteFooter page="home" production={production} />
     </>
   );
 }

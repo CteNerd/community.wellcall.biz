@@ -548,6 +548,7 @@ h1 em {
 
 .story-copy h2,
 .section-heading h2,
+.page-heading h1,
 .approach h2,
 .readiness-main h2,
 .faq h2 {
@@ -720,6 +721,40 @@ h1 em {
   font-size: 0.76rem;
 }
 
+.pathway-teaser-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.pathway-teaser {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  background: #fbfaf5;
+}
+
+.pathway-teaser h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.05em;
+}
+
+.pathway-teaser > p {
+  margin: 0 0 1.2rem;
+  color: #566259;
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+
+.pathway-teaser .text-link {
+  margin-top: auto;
+}
+
 .legacy-anchor {
   display: block;
   height: 0;
@@ -759,7 +794,7 @@ h1 em {
   margin-top: 2.5rem;
 }
 
-.track-header h3 {
+.track-header h2 {
   margin: 0 0 0.6rem;
   font-size: clamp(1.8rem, 3vw, 2.4rem);
   font-weight: 600;
@@ -801,8 +836,8 @@ h1 em {
   background: #fbfaf5;
 }
 
-.capability-card h4,
-.field-card h4 {
+.capability-card h3,
+.field-card h3 {
   margin: 0 0 0.6rem;
   font-size: 1.05rem;
   font-weight: 600;
@@ -859,7 +894,7 @@ h1 em {
   text-transform: uppercase;
 }
 
-.example-card h3 {
+.example-card h2 {
   margin: 0 0 0.8rem;
   font-size: 1.15rem;
   font-weight: 600;
@@ -1393,6 +1428,10 @@ h1 em {
   .capability-grid,
   .field-grid,
   .example-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pathway-teaser-grid {
     grid-template-columns: 1fr;
   }
 
