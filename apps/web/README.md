@@ -6,11 +6,16 @@ The approved meaning is **“Come Up Through Building, Learning,
 Opportunity & Competition”**; the public copy must not substitute a different
 expansion.
 
-The site describes the founder-led mission, a planned adult technology and
-mentorship pathway, and performance/athletics/facility ideas as future
-concepts only. It must not imply that any program, facility, application,
-mentor matching, or participant intake is operating. Youth participation
-remains out of scope until safeguarding and guardian workflows are reviewed.
+The site describes the founder-led mission, then separates **development
+tracks** (office: the planned adult technology/mentorship pilot plus a
+broader PM/engineering/QA/infrastructure/leadership roadmap; field: a future
+offensive/defensive-line-first athletic pathway) from **participation roles**
+(learner/mentor), which are independent concepts. It must not imply that any
+program, facility, application, mentor matching, or participant intake is
+operating. Youth participation remains out of scope until safeguarding and
+guardian workflows are reviewed. Any reference to an external collaborator
+(for example The Lab Performance & Strength) must be labeled as a potential
+collaboration under discussion, never a confirmed partnership.
 
 Keep default preview builds `noindex, nofollow`; do not add unverified contact details,
 testimonials, outcomes, legal-status claims, external enrollment links, or
